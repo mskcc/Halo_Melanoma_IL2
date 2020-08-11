@@ -47,13 +47,6 @@ In addition to creating the directory structure for your study, the configuratio
 
 **NOTE: One of the most important checks done during configuration is the list of samples to be analyzed. PLEASE review warnings carefully, fix errors and check the 'SAMPLES' parameter in this config file before proceeding!!**
 
-## Notes on R
-
-Currently using local R installation:
-
-    /home/byrne/R/R-3.6.1
-
-Check [here](docs/dependencies_WIP.txt) for dependencies
 
 ## Input data validation
 
