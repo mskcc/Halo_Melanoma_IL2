@@ -55,7 +55,8 @@ Check docs for dependencies
 It is a good idea to check all manually-created meta files for errors. This is not required as it is the first step of the pipeline anyway, but doing so first can help save you a log of debugging headaches later on. You may either pass to the script the entire configuration or just the directory of meta data files.
 
 ```
-Rscript [src_dir]/scripts/validate_input.R --manifest input/config/study_config.yaml
+Rscript [src_dir]/scripts/validate_input.R \
+    --manifest input/config/study_config.yaml
 ```
 or if configuration is not yet set up/validated:
 ```
@@ -67,6 +68,7 @@ Rscript [src_dir]/scripts/validate_input.R \
 ## Run pipeline
 
 A convenience shell script was created to easily launch pipeline on a LSF cluster.
+NOTE: this will need to be customized to your system.
 ```
 sh [src_dir]/pipeline/run.sh
 ```

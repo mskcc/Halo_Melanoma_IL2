@@ -18,7 +18,7 @@ log_threshold(DEBUG)
 #####################################
 usage <- function(){
 
-    cat("\nUsage:  Rscript annotate_cells.R 
+    cat("\nUsage:  Rscript configure_study.R 
             
           [REQUIRED (may be defined on command line OR in manifest file)] 
             --source_halo_csv_dir              path to CSV files output by Halo
