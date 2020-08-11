@@ -1,0 +1,144 @@
+#### CONFIGURE STUDY - note: this script has one interactive part, so I need to 
+#        figure out whether it can be run via an interactive shell within the 
+#        pipeline or if it should be a separate initial step
+#
+#      input: 
+#          - file paths: halo CSVs, XMLs, PNG/JPEGs, meta XLSX
+#          - stats questions file (XLSX)
+#          - stats conditions file (XLSX)
+#          - plot config file (YAML)
+#      output:
+#          - study_config.yaml (or TEMPLATE_CONFIG.yaml to be edited manually)
+
+bsub -Is -J 'halo_config' -R "rusage[mem=1]" \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/configure_study.R \
+    --source_halo_csv_dir /ifs/res/samba/Multiomyx/HaloData/attic/Melanoma_IL2_v1/ObjectAnalysisDataSpreadsheets \
+    --source_halo_boundaries_xml_dir /ifs/res/samba/Multiomyx/HaloData/Melanoma_IL2__Final/HaloCoordinates \
+    --source_halo_image_dir /ifs/res/samba/Multiomyx/HaloData/Melanoma_IL2__Final/Melanoma_IL2__Final_Scanplans/AllFOVs \
+    --source_meta_dir  /juno/work/bic/byrne/celldive/Melanoma_IL2__Final/analyses/input/meta \
+    --plot_config_file input/config/global_plot_colors.yaml \
+    --statistics_config_file input/config/stats_config.yaml  \
+    --statistics_questions_file input/config/stats_questions.xlsx \
+    --statistics_conditions_file input/config/stats_conditions.xlsx
+
+#### VALIDATE INPUT
+#      input: 
+#          - study config file, default: input/config/study_config.yaml
+#          - raw data files
+#          - meta files (XLSX)
+#      output: 
+#          - INPUT_VALID (touch file)
+
+bsub -J 'halo_input_validation' -e logs/halo_input_validation.log -o logs/halo_input_validation.log \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/validate_input.R \
+    --manifest input/config/study_config.yaml
+
+
+#### COMPILE META DATA
+#      input: 
+#          - meta files (XLSX)
+#      output:
+#          - all_meta_data.rda
+
+bsub -J 'halo_meta_data' -e logs/halo_meta_data.log -o logs/halo_meta_data.log \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/compile_meta.R \
+    --manifest input/config/study_config.yaml \
+    --meta_data_file all_meta_data.rda
+
+
+#### HALO TO SAMPLE RDA FILE (Nick)
+#      input:
+#          - sample halo CSV file
+#      output:
+#          - raw sample halo RDA file (object analysis file)
+
+#### MEASURE DRIFT (Zheng)
+#      input:
+#          - sample image file
+#      output:
+#          - sample drift summary
+
+#### PARSE BOUNDARIES (Nick?)
+#      input:
+#          - sample halo XML file
+#      output:
+#          - sample RDA/CSV file
+
+#### EXCLUSIONS (Caitlin)
+#      input:
+#          - sample raw object analysis file (RDA)
+#          - sample halo boundary file (RDA|CSV)
+#          - sample drift summary (tab-delimited TXT)
+#          - meta data files (XLSX)
+#      output:
+#          - sample object analysis file with EXCLUDE column
+
+
+#### NORMALIZATION/RETHRESHOLDING (Nick)
+#      input:
+#          - all EXCLUDE object analysis files (?)
+#      output:
+#          - sample object analysis files with come cell types reassigned
+
+
+#### ANNOTATE CELLS - convert marker-level object analysis data to cell level &
+#                     remove excluded cells
+#      input:
+#          - sample object analysis file with EXCLUDE column (RDA) OR sample annotated cell file
+#          - meta data (XLSX)
+#          - halo boundaries file (RDA)
+#      output:
+#          - sample annotated cell file (RDA)
+
+bsub -J 'halo_annotate_cells' -e logs/halo_annotate_cells.log -o logs/halo_annotate_cells.log \
+    -n 6 \
+    -R "span[ptile=1] rusage[mem=48]" \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/annotate_cells.R \
+        --manifest input/config/study_config.yaml \
+        --annotated_cells_file annotated_cells.rda \
+        --meta_dir input/meta \
+        --data_dir preprocessing/02_rethresholded \
+        --number_threads 6
+
+#### NEIGHBORHOODS (Nick)
+## Center vs Neighborhood cells - distance
+## one file per center cell type (macrophages, tumors)
+
+
+#### MICROENVIRONMENTS (Nick)
+## tumor microenvironments
+##   MHCI status (by cell)
+##   Center Immune cells vs Tumor neighborhood cells
+##
+##   MHCI status (by sample) - NOT CURRENTLY USED??
+
+
+#### CALCULATE AREA (per FOV, per infiltration band)
+#      input:
+#          - sample annotated cell file (RDA) 
+#      output:
+#          - sample FOV area file (RDA)
+#          - sample FOV Band area file (RDA)
+
+bsub -J halo_area -e logs/halo_area.log -o logs/halo_area.log -R "rusage[mem=128]" \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/data/calculate_area.R \
+    --manifest input/config/study_config.yaml
+
+
+#### CALCULATE METRICS (DENSITIES & FRACTIONS)
+#      input:
+#          - sample FOV area file (RDA)
+#          - sample FOV Band area file (RDA)
+#          - sample annotated cells (RDA)
+#          - macrophage neighborhood file
+#          - tumor neighborhood file
+#          - immune cell center - tumor neighborhood cell (TME assignments)
+#      output:
+#          - SEVERAL (LIST LATER)
+
+bsub -J halo_metrics -e logs/halo_metrics.log -o logs/halo_metrics.log -R "rusage[mem=128]" \
+    /home/byrne/R/R-3.6.1/bin/Rscript /home/byrne/halo/dev/melanoma/scripts/data/calculate_metrics.R \
+    --manifest input/config/study_config.yaml
+
+
+

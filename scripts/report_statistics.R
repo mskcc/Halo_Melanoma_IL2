@@ -1,0 +1,151 @@
+suppressMessages(library(logger))
+suppressMessages(library(R.utils))
+suppressMessages(library(funr))
+suppressMessages(library(yaml))
+suppressMessages(library(tidyverse))
+suppressMessages(library(xlsx))
+suppressMessages(library(parallel))
+
+log_threshold(DEBUG)
+
+#####################################
+#####        SOURCE CODE        #####
+#####################################
+
+sdir <- dirname(get_script_path())
+log_debug(paste0("loading source files from: ",sdir))
+
+source(file.path(sdir, "R/constants.R"))
+source(file.path(sdir, "R/cell_annotation.R"))
+source(file.path(sdir, "R/script_utils.R"))
+source(file.path(sdir, "R/data_utils.R"))
+source(file.path(sdir, "R/file_utils.R"))
+source(file.path(sdir, "R/filter_data.R"))
+source(file.path(sdir, "R/format_data.R"))
+source(file.path(sdir, "R/metrics.R"))
+source(file.path(sdir, "R/load_data.R"))
+source(file.path(sdir, "R/statistics.R"))
+
+#####################################
+#####       GET USER INPUT      #####
+#####################################
+
+usage <- function(){
+
+ cat("\nUsage:  Rscript report_statistics.R 
+            
+    [REQUIRED (may be defined on command line OR in manifest file)] 
+      --cell_data_dir               path to RDA files, each containing a single 
+                                    table where rows are cells and columns are 
+                                    all data for that single cell
+      --meta_dir                    path to meta files in XLSX format
+      --metrics_dir                 root directory for all area, fractions and 
+                                    densities; subdirs will be created for each 
+                                    cell region
+      --annotation_config_file      YAML file describing how conditions are to be 
+                                    arranged and indexed
+      --statistics_config_file      YAML file defining configuration for statistics; 
+                                    see docs for details
+      --statistics_questions_file   XLSX file outlining all questions/comparisons for 
+                                    which stats should be run
+      --statistics_conditions_file  XLSX file listing all cell states/conditions to 
+                                    compare between two sample groups
+      --statistics_tables_dir       output directory where XLSX files of results should 
+                                    be written
+      --fov_area_dir                path to RDA files, each containing table of FOVs and 
+                                    total FOV area for all FOVs in a single sample 
+      --band_dir                    path to RDA files, each containing a table of band 
+                                    assignments and band areas for each cell
+
+    [OPTIONAL]
+      --manifest                YAML file containing one or more parameter; NOTE: arguments 
+                                on command line override manifest arguments!!!         
+      --number_threads          number of threads to use for parallel processes
+      --question                a single QuestionNumber from statistics_questions_file to run stats on
+  \n"
+ )
+
+}
+
+## names of required args
+minReq <- list("statistics_config_file",
+               "statistics_questions_file",
+               "statistics_tables_dir",
+               "annotation_config_file",
+               c("meta_dir","meta_files","meta_data_file"),
+               "cell_data_dir",
+               "fov_area_dir",
+               "band_dir",
+               "metrics_dir")
+
+used <- unique(c(minReq, c("manifest", "question"))) 
+
+defaults <- list(question = "all")
+
+if(!interactive()){
+    suppressMessages(library(R.utils))
+    ## this allows ANY parameter set in config to be overwritten here
+    args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
+} else {
+    args <- processCMD(list(manifest = "input/config/study_config.yaml",  
+                            statistics_config_file = "input/config/stats_config.yaml"), 
+                       defaults, minReq, usage)
+    args$question <- "7b_nbhd_by_cell"
+}
+
+#####################################
+###   CONFIGURATION & DATA INIT   ###
+#####################################
+
+cfg        <- resolveConfig(args, read_yaml(args$statistics_config_file))
+outDir     <- cfg$statistics_tables_dir
+mkdir(outDir)
+
+loadGlobalStudyData(cfg, all = T)
+calcUnit <- "FOV_ID"
+qToRun <- names(allQuestions)
+if(!is.null(cfg$question)){
+    qToRun <- cfg$question
+}
+
+######################################
+###    FINALLY, ANSWER QUESTIONS   ###
+######################################
+log_info(paste0("Running stats on ",toupper(calcUnit)," level..."))
+
+for(q in qToRun){
+    log_info(paste0("QUESTION: ",q))
+
+    allAnalyses <- analysisList
+
+    ## for tumor neighborhood analyses, only run fractions analysis 
+    if(any(tolower(unlist(allQuestions[[q]])) == "neighborhood")){ 
+        allAnalyses <- allAnalyses[names(allAnalyses) == "fractions"] 
+    }
+
+    qRes <- tryCatch({
+               getQuestionStatistics(allQuestions[[q]], 
+                                     annCells, 
+                                     sampAnn, 
+                                     allAnalyses,
+                                     markers, 
+                                     cfg$metrics_dir, 
+                                     cfg$results_filters[[cfg$use_filter]], 
+                                     filtName = cfg$use_filter,
+                                     calcUnit = calcUnit,
+                                     nbhdCounts = nbhdCounts, 
+                                     tumorNbhdCells = tumorNbhdCells)
+              }, error = function(e){
+                  log_error(e)
+                  log_error(paste0("Stats failed for question ",q))
+             })
+
+    if(is.null(qRes)){ next }
+
+    ### Save results
+    outFile <- file.path(cfg$statistics_tables_dir, paste0(q,".xlsx"))
+    log_debug("writing XLSX file...")
+    writeStatsQuestionXLSX(qRes, outFile)
+    log_info("done.")
+}
+
