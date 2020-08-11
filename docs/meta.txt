@@ -1,0 +1,68 @@
+[StudyName]_Patients.xlsx
+    - REQUIRED COLUMNS:
+        - Patient_ID - unique patient identifier
+        - Patient_response - character string indicating to which group the patient belongs
+                           - group names must be consistent across patients belonging to the same group 
+                           - group names are case sensitive
+
+[StudyName]_Samples.xlsx
+    - REQUIRED COLUMNS:
+        - CellDive_ID - unique sample identifier (character string) matching the IDs in halo files (images, CSVs, boundary XML files)
+        - Patient_ID - unique patient identifier from *_Patients.xlsx indicating which patient the same came from 
+        - Sample_number - number (or character string) uniquely identifiying a sample WITHIN a patient (i.e., this identifier may match that of a different sample from a different patient even though they have nothing to do with each other)
+
+    - Pipeline will generate unique Sample_ID in the form [Patient_ID]_[Sample_number]
+    - A column may be added for any sample-level characteristic user wishes to analyze. Some examples:
+        - Tumor_subtype
+        - Treatment
+        - Lesion_response
+    - Column names should be capitalized, should not include special characters and any spaces should be replaced by underscores 
+
+[StudyName]_FOVs.xlsx
+    - REQUIRED COLUMNS:
+        - CellDive_ID - ID matching a single CellDive_ID in *_Samples.xlsx to indicate from which sample/lesion the FOV came
+        - FOV_number - number (or character string) uniquely identifying a FOV WITHIN a sample (i.e., this identifier may match that of a different FOV from a different sample even though they have nothing to do with each other)
+        - FOV_used_for_thresholding - FOVs with a 'X' in this column were used for manual thresholding
+        - FOV_exclusion - FOVs with a 'X' in this column should be excluded from all analyses
+        - FOV_exclusion_stage - stage in analysis at which it was determined that the FOV should be excluded; possible values: [pre-halo|post-analysis]
+        - Marker_exclusion - values are comma-delimited marker names that should be removed from all data for a single FOV
+        - Num_manual_exclusions - integer indicating how many regions from a FOV were marked manually in Halo for exclusion
+        - Num_epidermis_exclusions - integer indicating how many regions from a FOV were determined to be epidermis 
+        - Num_interface_areas - integer indicating how many regions from a FOV were determined to be tumor interface
+
+    - Pipeline will generate unique FOV_ID in the form [Patient_ID]_[Sample_number]_[FOV_number]
+    - A column may be added for any sample-level characteristic user wishes to analyze. Some examples:
+        - FOV_type
+        - FOV_size
+    - Column names should be capitalized, should not include special characters and any spaces should be replaced by underscores 
+
+[StudyName]_Markers.xlsx
+    - REQUIRED COLUMNS:
+        - Marker_name - character string; name of a single marker as it appears in Halo data
+        - Description - type of marker; [Identity|Functional]
+        - Cell_type - a 'X' in this column means a marker is used to help define a cell type
+        - Threshold_compartment - ????
+        - In_cell_types - for functional markers, comma-delimited string of cell types in which the marker may exist
+
+[StudyName]_CellTypes.xlsx
+    - REQUIRED COLUMNS:
+        - Category - cell type category (e.g., Immune or Tumor)
+        - Cell_type - name of main cell type (e.g., T cell, Tumor, Macrophage/monocyte)
+        - Subtype - subtype of a kind of cell (e.g., CD4+ T cell, MHCII+ macrophage)
+        - Pos_markers - comma-separated list of markers that either CAN or MUST be positive in order for a cell to be identified as a specific subtype
+        - Pos_required - 
+             - 'all': every marker in Pos_markers must be positive in order for a cell to be identified as subtype
+             - '+': at least one marker in Pos_markers must be positive in order for a cell to be identified as subtype
+        - Neg_markers - comma-separated list of markers that MUST be negative in order for a cell to be identified as a subtype
+        - Tag - a short unique identifier for a subtype
+        - Combo_label - for subtypes/states that have multiple possible marker combinations (those with '+' under Pos_required), this value
+                        tells the pipeline how to label each combination; ['Tag + number positives'|'Tag']
+                      - example: 
+                          Subtype	Pos_markers	Pos_required	Tag	Combo_label
+			  Exhaustion	PD1,LAG3,TIM3	+	EXM	Tag + number positives
+                      - this row will ultimately be expanded to have a single row for each combination of PD1,LAG3,TIM3 and the new tags will be 'EXM[0|1|2|3]'
+        - Classification_type - [state|type] indicating that the marker combination identifies a cell type or a cell state
+        - Abbrev_label_for_figures - short subtype label to be used in some figures; may include subscripts
+
+    - OPTIONAL COLUMNS:
+        - Subscript - for values in Abbrev_label_for_figures that do include subscripts, only the string to be subscripted will be in this column
