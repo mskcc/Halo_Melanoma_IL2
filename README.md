@@ -48,7 +48,7 @@ Currently using local R installation:
 
     /home/byrne/R/R-3.6.1
 
-Check [here] (docs/dependencies_WIP.txt) for dependencies
+Check [here](docs/dependencies_WIP.txt) for dependencies
 
 ## Input data validation
 
