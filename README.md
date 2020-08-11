@@ -70,3 +70,8 @@ NOTE: this will need to be customized to your system.
 ```
 sh [src_dir]/pipeline/run.sh
 ```
+
+Alternatively, to run pipeline without a cluster:
+```
+sh [src_dir]/pipeline/serial_pipeline.sh
+```
