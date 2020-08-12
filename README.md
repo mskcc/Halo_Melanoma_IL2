@@ -38,7 +38,7 @@ Rscript [src_dir]/scripts/configure_study.R \
 ```
 Optionally, you may pass an existing YAML file containing pre-set configuration, additional config files (see usage), and/or statistics XLSX files with comparisons and conditions to be analyzed.
 
-<b>NOTE: these additional config and XLSX files will have to be before the pipeline is run.</b>
+<b>NOTE: these additional config and XLSX files will have to be created before the pipeline is run.</b>
 
 
 In addition to creating the directory structure for your study, the configuration will link all source files to the newly created project directory and set the configuration to point to the local directories. Study configuration will be validated and written to:
