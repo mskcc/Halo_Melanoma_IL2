@@ -56,6 +56,9 @@ rule compile_meta_data:
 
 
 """
+*****************
+*  NICK'S CODE  *
+*****************
 rule halo_csv_to_rda:
     input:
         config['halo_csv_dir'] + "/{sample}_[ADD_SUFFIX].csv.gz"
@@ -69,6 +72,9 @@ rule halo_csv_to_rda:
 
 
 """
+******************
+*  ZHENG'S CODE  *
+******************
 rule measure_drift:
     input:
         config['halo_image_dir'] + "/{sample}_[ADD_SUFFIX_AND_EXTENSION]
@@ -80,6 +86,9 @@ rule measure_drift:
 
 
 """
+******************
+*  NICK'S CODE?  *
+******************
 rule halo_boundary_xml_to_rda:
     input:
         config['halo_boundaries_xml_dir'] + "{sample}_[ADD_SUFFIX].annotations?"
@@ -93,6 +102,9 @@ rule halo_boundary_xml_to_rda:
 
 
 """
+******************
+*  CAIT'S  CODE  *
+******************
 rule mark_exclusions:
     input:
         config['raw_data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
@@ -104,6 +116,9 @@ rule mark_exclusions:
 
 
 """
+*****************
+*  NICK'S CODE  *
+*****************
 rule normalize_and_rethreshold:
     input:
         config['exclusion_data_dir'] + "/{sample}_[ADD_SUFFIX]_Excl.rda"
@@ -116,6 +131,9 @@ Also, is reassignment part of this script or separate????
 """
 
 """
+*****************
+*  NICK'S CODE  *
+*****************
 rule measure_cell_to_cell_distances:
     input:
         config['data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
@@ -128,6 +146,9 @@ rule measure_cell_to_cell_distances:
 
 
 """
+*****************
+*  NICK'S CODE  *
+*****************
 rule assign_tumor_environments:
     input:
     output:
