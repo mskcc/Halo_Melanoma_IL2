@@ -63,6 +63,7 @@ names and descriptions of all markers used in study
 
 <br>
 
+<!-- 
 #### [StudyName]_Files.xlsx
 manifest of all halo files per FOV
 | Column | Description |
@@ -72,3 +73,4 @@ manifest of all halo files per FOV
 | Halo_data_file | full path to Halo CSV file |
 | Halo_image_file | full path to Halo image file |
 | Halo_boundary_file | full path to XML file containing all exclusion and tumor boundaries for a single FOV |
+-->

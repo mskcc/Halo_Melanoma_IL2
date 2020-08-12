@@ -18,7 +18,7 @@ Input includes paths to data output directly from Halo (CSV, images, XML boundar
     - [StudyName]_FOVs.xlsx
     - [StudyName]_CellTypes.xlsx
     - [StudyName]_Markers.xlsx
-    - [StudyName]_Files.xlsx
+<!--    - [StudyName]_Files.xlsx -->
 
 See [study_meta_data.md](docs/study_meta_data.md) for instructions on how to create each of these files.
 
