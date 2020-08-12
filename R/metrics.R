@@ -878,21 +878,19 @@ getPopulationMetrics <- function(dat, allAnalyses, markers, areas = NULL, calcUn
     countFiles <- fracFiles <- densFiles <- navgFiles <- nfracFiles <- NULL
 
     if(!is.null(outDir) && dataStored){
-        if(!dir.exists(outDir)){
-            mkdir(outDir)
+        mkdir(outDir)
+        if(tolower(cellDiveID) == "all"){
+            cdids <- dat %>% pull("CellDive_ID") %>% unique
+        } else {
+            cdids <- cellDiveID
         }
-        allFiles <- file.path(outDir, dir(outDir))
-        filePre <- ifelse(!is.null(cellDiveID) && tolower(cellDiveID) == "all", "", paste0("^", cellDiveID, "_"))
-        countFiles   <- allFiles[grepl(paste0(filePre,"_counts_per_",calcUnit,".rda"), allFiles)]
-        fracFiles    <- allFiles[grepl(paste0(filePre,"_fractions_per_",calcUnit,".rda"), allFiles)]
-        fracFiles    <- fracFiles[!grepl("All_|all_|neighborhood", fracFiles)]
-        densFiles    <- allFiles[grepl(paste0(filePre,"_densities_per_",calcUnit,".rda"), allFiles)]
-        densFiles    <- densFiles[!grepl("All_|all_", densFiles)]
-        navgFiles    <- allFiles[grepl(paste0(filePre,"_neighborhood_averages_per_",calcUnit,".rda"), allFiles)]
-        navgFiles    <- navgFiles[!grepl("All_|all_", navgFiles)]
-        nfracFiles   <- allFiles[grepl(paste0(filePre,"_neighborhood_mean_fractions_per_",calcUnit,".rda"), allFiles)]
-        nfracFiles   <- nfracFiles[!grepl("All_|all_", nfracFiles)]
+        countFiles <- file.path(outDir, paste0(cdids, "_counts_per_", calcUnit, ".rda"))
+        fracFiles  <- file.path(outDir, paste0(cdids, "_fractions_per_", calcUnit, ".rda"))
+        densFiles  <- file.path(outDir, paste0(cdids, "_densities_per_", calcUnit, ".rda"))
+        navgFiles  <- file.path(outDir, paste0(cdids, "_neighborhood_averages_per_", calcUnit, ".rda"))
+        nfracFiles <- file.path(outDir, paste0(cdids, "_neighborhood_mean_fractions_per_", calcUnit, ".rda"))
     }
+
 
     ## get full fractions/densities population list
     allPops <- unique(c(allAnalyses$fractions$Condition,
@@ -991,7 +989,7 @@ getPopulationMetrics <- function(dat, allAnalyses, markers, areas = NULL, calcUn
 
     ### neighborhood average counts
     if("navgcounts" %in% names(allAnalyses)){
-        if(is.null(navgFile) || length(navgFile) == 0){
+        if(is.null(navgFiles) || length(navgFiles) == 0){
             popDat$navgcounts <- getNeighborhoodAverageCounts(popDat$ncounts,
                                                               allAnalyses$navgcounts,
                                                               calcUnit = calcUnit)
@@ -1017,7 +1015,7 @@ getPopulationMetrics <- function(dat, allAnalyses, markers, areas = NULL, calcUn
 
     ### neighborhood fractions
     if("nfracs" %in% names(allAnalyses)){
-        if(is.null(nFracFiles) || length(nfracFiles) == 0){
+        if(is.null(nfracFiles) || length(nfracFiles) == 0){
             popDat$nfracs <- getNeighborhoodFractions(nbhdCounts,
                                                       allAnalyses$nfracs,
                                                       calcUnit = calcUnit)

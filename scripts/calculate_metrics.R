@@ -24,6 +24,7 @@ source(file.path(sdir, "R/format_data.R"))
 source(file.path(sdir, "R/metrics.R"))
 source(file.path(sdir, "R/load_data.R"))
 source(file.path(sdir, "R/filter_data.R"))
+
 #####################################
 #####       GET USER INPUT      #####
 #####################################
@@ -83,7 +84,7 @@ if(!interactive()){
 } else {
     args <- processCMD(list(manifest = "input/config/study_config.yaml",
                             cell_dive_id = "mel_1", 
-                            focus = "interface"),
+                            focus = "fov"),
                        defaults, minReq, usage)
 }
 

@@ -254,7 +254,8 @@ loadAnnotatedCells <- function(sampAnn, annDir, fovAreaDir = NULL, bandDir = NUL
 
         for(id in cdids){
             faFile <- NULL
-            if(!is.null(faFiles)){ faFiles <- faFiles[grep(paste0("^", id, "_"), basename(faFiles))] }
+            ptrn <- paste0("^", id, "_")
+            if(!is.null(faFiles)){ faFile <- faFiles[grep(ptrn, basename(faFiles))] }
             if(!is.null(faFile) && length(faFile) == 1 && file.exists(faFile)){
                 log_debug(paste0("joining FOV areas from file: ", faFile))
                 fa <- readRDS(faFile)
@@ -263,7 +264,7 @@ loadAnnotatedCells <- function(sampAnn, annDir, fovAreaDir = NULL, bandDir = NUL
             }
 
             baFile <- NULL
-            if(!is.null(baFiles)){ baFile <- baFiles[grep(paste0("^", id, "_"), basename(baFiles))] }
+            if(!is.null(baFiles)){ baFile <- baFiles[grep(ptrn, basename(baFiles))] }
             if(!is.null(baFile) && length(baFile) == 1 && file.exists(baFile)){
                 log_debug(paste0("joining cell band info from file: ", baFile))
                 ba <- readRDS(baFile)
