@@ -460,23 +460,6 @@ loadStudyAnnotations <- function(metaFiles = NULL, metaDataFile = NULL){
 }
 
 
-#' Filter conditions index for all conditions of a single analysis type
-#' 
-#' Given a table of all conditions including column 'AnalysisType', filter
-#' for conditions of a single type (e.g., spatial or general)
-#' 
-#' @param condIdx       table of conditions including column 'AnalysisType'
-#' @param analysisType  character string matching a single value in column
-#'                      'AnalysisType'
-#'
-#' @return  subset of condIdx
-filterConditionsByAnalysisType <- function(condIdx, analysisType){
-    condIdx %>%
-    filter(AnalysisType == analysisType) %>%
-    select_if(function(x){ !all(is.na(x)) })
-}
-
-
 
 #' Compile all analyses to be run
 #' 
@@ -663,72 +646,3 @@ loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, fmtNbhdDirs, sampA
 }
 
 
-tmeStatistics <- function(tmeFile, analysisList, nbhdAssignmentFile, assignmentLevel = "cell"){ 
-
-    analyses <- analysisList$fractions %>%
-                select(`Cell State ID`,
-                       `Neighborhood Population A` = Condition,
-                       `Neighborhood Population B` = Population) %>%
-                mutate(`Center Population A` = "Tumor", `Center Population B` = "Tumor")
-
-    tme <- readRDS(tmeFile)
-
-    ### JOIN POS/NEG ENV ASSIGNMENTS of NEIGHBORHOOD CELLS
-    prefix  <- paste0("C.", assignmentLevel, "_")
-    tmp     <- readRDS(nbhdAssignmentFile)
-    mrkrCol <- names(tmp)[grepl("microEnv", names(tmp))]
-    groupVar  <- gsub("microEnv.", prefix, mrkrCol)
-    tme <- tme %>%
-           left_join(tmp %>%
-                     select_at(c("UUID", mrkrCol)) %>%
-                     rename(C.UUID = UUID, !!as.name(groupVar) := !!as.name(mrkrCol)),
-                     by = "C.UUID")
-
-    ## reduce at least some for now
-    tme <- tme %>%
-           rename(FOV_ID = FOV) %>%
-           select(-Center, -Neighbor, -N.UUID, -Dij.micron, -C2) %>%
-           group_by_at(names(.)) %>%
-           summarize(Count = n()) %>%
-           mutate(PositiveMarkers = N.FullPosMarkerStr, Classifiers = N.Classifiers) ## rename for filtering 
-    tmeStats <- list()
-    #for(x in 1:nrow(analyses)){
-
-    tmeStats <- lapply(1:nrow(analyses), function(x){
-
-        pop <- unlist(analyses[x,])
-        log_debug(paste0("[", pop[3], "]    ", pop[1], "/", pop[2]))
-        csid <- pop$`Cell State ID`
-
-        fracs <- getTMEfractions(tme, csid, "Tumor", pop[1], pop[2])
-        #fracs <- tibble()
-        #for(p in c("A", "B")){
-        #    col <- paste0("Neighborhood Population ", p)
-        #    popDat <- tme %>% 
-        #              filterDataForCondition(pop[[col]], markers) %>%
-        #              mutate(`Cell State ID` = csid, 
-        #                     `Center Population A` = pop$`Center Population A`,
-        #                     `Center Population B` = pop$`Center Population A`,
-        #                     !!as.name(col) := pop[[col]]) %>%
-        #              group_by_at(names(.)[!grepl("Marker|Count|Classifiers", names(.))]) %>%
-        #              summarize(!!as.name(paste0("N.pop.",p,"_Count")) := sum(Count))
-        #    if(p == "A"){
-        #        fracs <- popDat
-        #    } else {
-        #        fracs <- fracs %>% 
-        #                 full_join(popDat, by = intersect(names(.), names(popDat)))
-        #    
-        #        naPop <- which(is.na(fracs$`Neighborhood Population A`))
-        #        fracs$`Neighborhood Population A`[naPop]        <- pop[["Neighborhood Population A"]] 
-        #        fracs$N.pop.A_Count[is.na(fracs$N.pop.A_Count)] <- 0
-        #    }
-        #}
-        #calcUnit <- "C.UUID" 
-        #fracs <- fracs %>%
-        #         mutate(Fraction = N.pop.A_Count/N.pop.B_Count) %>%
-        #         filter(!!as.name(groupVar) %in% c("Pos.Env","Neg.Env"))
-
-        reportTMELogOdds(fracs, groupVar, calcUnit)
-    })
-
-}

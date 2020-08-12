@@ -66,62 +66,6 @@ getCenterCellTypeSubset <- function(neighborhoodCounts, subCenterCellType){
     subDat
 }
 
-#' Filter annotated cell data for a single condition
-#' 
-#' Get all cells that meet all criteria outlined in condition string
-#' 
-#' @param dat           table of annotated cell data, where one row represents a single cell
-#'                      and, at minimum, columns for Classifiers and PositiveMarkers 
-#' @param conditionStr  comma-delimited string containing a combination of cell types (classifiers) 
-#'                      and/or markers
-#' @param markers       vector of individual markers used to distinguish markers from classifiers
-#'
-#' @return subset of dat including only cells that match ALL criteria included in conditionStr
-filterDataForCondition <- function(dat, conditionStr, markers){
-
-    if(conditionStr == "DAPI"){ return(dat) }
-
-    pts <- unlist(strsplit(conditionStr,","))
-    if("DAPI" %in% pts){ pts <- pts[!pts == "DAPI"] }
-
-    negMarkers <- gsub("-","",pts[grep("-",pts)])
-    posMarkers <- pts[which(pts %in% markers)]
-
-    if(length(c(negMarkers, posMarkers)) > 0){
-        cats <- pts[-which(gsub("-","",pts) %in% c(negMarkers, posMarkers))]
-    } else {
-        cats <- pts
-    }
-
-    ## filter for cells that satisfy ALL categories
-    if(!is.null(cats) && length(cats) > 0){
-        for(cat in cats){
-            dat <- dat %>%
-                   filter(grepl(getClassifierPattern(cat), Classifiers, perl=T))
-        }
-    }
-
-    ## filter for cells positive for ALL positive markers
-    if(!is.null(posMarkers) && length(posMarkers) > 0){
-        if("DAPI" %in% posMarkers){ posMarkers <- posMarkers[!posMarkers == "DAPI"] }
-        if(!is.null(posMarkers) && length(posMarkers) > 0){
-            pats <- unlist(sapply(posMarkers, function(x){ paste(getClassifierPattern(x,delim=",")) }))
-            for(pat in pats){
-                dat <- dat %>%
-                       filter(grepl(pat, PositiveMarkers, perl=TRUE))
-            }
-        }
-    }
-    ## filter for cells negative for ALL negative markers
-    if(!is.null(negMarkers) && length(negMarkers) > 0){
-        pats <- unlist(sapply(negMarkers, function(x){ getClassifierPattern(x, delim=",") }))
-        dat <- dat %>%
-               filter(!grepl(paste(pats, collapse="|"), PositiveMarkers, perl=TRUE))
-    }
-
-    return(dat)
-}
-
 subDivideLongSegments<-function(boundary,maxSegLength) {
 
     if(nrow(boundary) == 0){
