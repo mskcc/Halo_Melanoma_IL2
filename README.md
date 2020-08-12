@@ -45,7 +45,7 @@ In addition to creating the directory structure for your study, the configuratio
 
     **input/config/study_config.yaml**
 
-**NOTE: One of the most important checks done during configuration is the list of samples to be analyzed. PLEASE review warnings carefully, fix errors and check the 'SAMPLES' parameter in this config file before proceeding!!**
+**NOTE: One of the most important checks done during configuration is the list of samples to be analyzed. PLEASE review warnings carefully & fix errors before proceeding!!**
 
 
 ## Input data validation
