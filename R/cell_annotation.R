@@ -1,18 +1,3 @@
-#' Make sure a cell can be classified into only one of a pair or list of groups
-#' 
-#' Given a tibble with UUIDs and classification for each cell, check that
-#' each cell fits into just one of the groups being analyzed
-#checkForDoubleCounts <- function(cellClassification, groups, delim=";"){  #### ADD UNIT TEST
-
-#    classes <- strsplit(cellClassification$Classifiers, delim)
-
-#    for(g in groups){
-#        cellClassification[[g]] <- 0
-#        cellClassification[[g]][g %in% classes]
-#    }
-    
-#}
-
 #' Generate vector of positive marker combinations
 #' 
 #' Given a vector of markers, expand into vector of all combinations of those
@@ -185,8 +170,8 @@ getCellTypes <- function(cellTypesXLSX){
 #' @param  newClasses        a delimited character string of new classes to add to every item in 
 #'                           {existingClasses}; NOTE: setting unique at this point will NOT 
 #' @param  delim             delimiter separating individual classes in both {existingClasses} and {newClasses}
+#'
 #' @return  vector of expanded class lists
-#' @export
 appendClassifiers <- function(existingClasses = NULL, newClasses, unique=FALSE, delim=";"){
 
     exC <- existingClasses
@@ -207,36 +192,42 @@ appendClassifiers <- function(existingClasses = NULL, newClasses, unique=FALSE, 
 #' Get vector of all markers used in study
 #'
 #' @param markerDesc  read from Markers meta file
+#'
 #' @return vector of all markers under Marker_name column of markers file
 getAllMarkers <- function(markerDesc){
     markerDesc %>% pull(Marker_name)
 }
+
 
 #' Get vector of all 'cell type' markers used in study
 #'
 #' Get vector of all 'cell type' markers used in study
 #'
 #' @param markerDesc  read from Markers meta file
+#'
 #' @return vector of marker names identified as a cell type marker by 
 #'         a 'X' under the Cell_type column of markers file 
 getCellTypeMarkers <- function(markerDesc){
     markerDesc %>% filter(Cell_type == "X") %>% pull(Marker_name)
 }
 
+
 #' Get vector of all 'identity' markers used in study
 #'
 #' Get vector of all 'identiry' markers used in study
 #'
 #' @param markerDesc  read from Markers meta file
+#'
 #' @return vector of markers classified as 'Identity' markers by the word 'Identity'
 #'         in the Description column of markers file 
 getIdentityMarkers <- function(markerDesc){
     markerDesc %>% filter(Description == "Identity") %>% pull(Marker_name)
 }
 
+
 #' Add columns to indicate all positive markers and positive cell identity markers
 #'
-#' Given tibble where each row is a unique cell and columns for each marker have
+#' Given a tibble where each row is a unique cell and columns for each marker have
 #' a value of 1 (marker is positive in that cell) or 0 (marker is negative in that cell),
 #' add columns 'PositiveMarkers' and 'CTMarkers'. 'PositiveMarkers' is a comma-delimited
 #' string of ALL positive markers in a cell and 'CTMarkers' is a comma-delimited string
@@ -247,6 +238,7 @@ getIdentityMarkers <- function(markerDesc){
 #'                    in that cell)
 #' @param markerDesc  tibble with at minimum columns Marker_name, Cell_type; markers where Cell_type == 'X'
 #'                    will be included in values under CTMarkers
+#'
 #' @return  original data table with PositiveMarkers and CTMarkers columns added
 addCellPositiveMarkers <- function(dat, markerDesc){
 
@@ -290,6 +282,7 @@ addCellPositiveMarkers <- function(dat, markerDesc){
 #' @param dat      vector of cell classifications to be checked for conflicts
 #' @param classes  a vector of classes named by their classification type (Category, 
 #'                 Cell_type, Subtype, etc.) to be assigned to cells
+#'
 #' @return nothing
 cellClassConflicts <- function(dat, classes){
     for(cl in names(classes)){  ## Category Cell_type Subtype Tag
@@ -313,6 +306,7 @@ cellClassConflicts <- function(dat, classes){
 #' @param  dat         cell-level data table
 #' @param  classTypes  column names of all classification types to be assigned
 #'                     (generally Category, Cell_type, Subtype, Tag, Classifiers)
+#'
 #' @return data table with empty columns for all class types
 resetDataClassification <- function(dat, classTypes){
     for(type in classTypes){
@@ -329,6 +323,7 @@ resetDataClassification <- function(dat, classTypes){
 #' 
 #' @param dat       cell level halo data including columns CTMarkers and PositiveMarkers
 #' @param idMarkers vector of Identity markers pulled from marker descriptions xlsx file
+#' 
 #' @return vector of unique marker combinations existing in data that are not sufficient
 #'         to identify the cell as a certain type
 getAllUnknownSupernegCombos <- function(dat, idMarkers){
@@ -350,6 +345,7 @@ getAllUnknownSupernegCombos <- function(dat, idMarkers){
 #' @param  markerDesc table of marker information including Marker_name, Cell_type and Description (see docs for details)
 #' @param  reclassify logical; when TRUE, existing Classifiers column will be set to NULL before classifying cells; 
 #'                    otherwise, classifiers will be appended to Classifiers column
+#'
 #' @return newly-annotated cell data table 
 addCellTypes <- function(dat, cellTypes, markerDesc, reclassify=FALSE){
 
@@ -421,7 +417,15 @@ addCellTypes <- function(dat, cellTypes, markerDesc, reclassify=FALSE){
 }
 
 
-
+#' Check that all group names exist in a set of column names 
+#' 
+#' Throw an error if not all column names to be used as grouping
+#' variables exist in set of column names pulled from data
+#'
+#' @param cols     vector of tibble column names
+#' @param groupBy  groupBy vector of group names
+#'
+#' @return nothing; throw error if not all group names are in col names
 checkGrouping <- function(cols, groupBy){
     if(!all(groupBy %in% cols)){
         stop(paste0("Invalid groups: ",groupBy))
@@ -437,8 +441,8 @@ checkGrouping <- function(cols, groupBy){
 #'
 #' @param dat             tibble of *annotated* halo data containing one or more samples
 #' @param class           class/cell type to find
+#'
 #' @return vector of UUIDs of cells in class
-#' @export
 getClassUUIDs <- function(dat, class){
     dat %>% 
     filter(grepl(getClassifierPattern(class), Classifiers)) %>%
@@ -452,8 +456,8 @@ getClassUUIDs <- function(dat, class){
 #' ONLY the class are being counted
 #' 
 #' @param c   character string of class being searched for
+#'
 #' @return  a character string to be used when grepping for class in Classifiers column of data
-#' @export
 getClassifierPattern <- function(c, delim=";"){
 
     pat <- paste(c(paste0("^",c,delim),paste0(delim,c,delim),paste0(delim,c,"$"),paste0("^",c,"$")), collapse="|")
@@ -471,8 +475,8 @@ getClassifierPattern <- function(c, delim=";"){
 #' 
 #' @param UUIDlist    list containing vectors of UUIDs, each representing a cell group
 #'                    that should have no intersections with any other vectors in the list
+#' 
 #' @return list where each element is a pair of vectors that contains one or more overlapping cells
-#' @export 
 cellGroupOverlaps <- function(UUIDlist){
 
     allOverlaps <- list()
@@ -505,8 +509,8 @@ cellGroupOverlaps <- function(UUIDlist){
 #' @param dat        table of halo data where a row represents a single cell and contains,
 #'                   at minimum, columns UUID and Classifiers
 #' @param cellTypes  vector of one or more cell types to search for in Classifiers column
+#'
 #' @return  vector of all UUIDs that match one or more value in {cellTypes}
-#' @export
 uuidsAnyClass <- function(dat, cellTypes){
     fullPat <- getClassifierPattern(cellTypes[1])
     if(length(cellTypes) > 1){
@@ -524,8 +528,8 @@ uuidsAnyClass <- function(dat, cellTypes){
 #' @param dat        table of halo data where a row represents a single cell and contains,
 #'                   at minimum, columns UUID and Classifiers
 #' @param cellTypes  vector of one or more cell types to search for in Classifiers column
+#'
 #' @return  vector of all UUIDs that match ALL values in {cellTypes}
-#' @export
 uuidsAllClasses <- function(dat, cellTypes){
     tmp <- dat    
     for(ct in cellTypes){
@@ -548,8 +552,8 @@ uuidsAllClasses <- function(dat, cellTypes){
 #'                  delimited by semi-colons
 #' @param cellTypes parsed and expanded table version of *CellTypes.xlsx
 #' @param classCols vector of columns from cellTypes table; default=c("Category", "Cell_type", "Subtype", "Tag")
+#'
 #' @return  annDat table with columns for Category, CellType, Subtype and Tag
-#' @export
 separateClassifiers <- function(annDat, cellTypes, classCols=NULL){
 
     classCols <- c("Category","Cell_type","Subtype","Tag")
@@ -573,8 +577,8 @@ separateClassifiers <- function(annDat, cellTypes, classCols=NULL){
 #' including both positive and negative variations
 #' 
 #' @param markers  vector of single markers
+#'
 #' @return  list of all combinations
-#' @export
 getAllCombos <- function(markers){
     all.combos = list()
     ## get all combinations of markers
@@ -595,6 +599,27 @@ getAllCombos <- function(markers){
 }
 
 
+#' Add to cell-level tibble columns for positive markers and cell classifications
+#' 
+#' Given a tibble complete table of marker positivity for each cell, add columns
+#' consolidating list of positive markers in each cell, positive cell identity markers
+#' for each cell, and assign cell classes/types based on those positive markers
+#' 
+#' @param annotatedCellsFile   file that either already contains a cell-level tibble of
+#'                             Halo data or the file to which said table will be saved
+#' @param dataDir              directory of Halo files to be annotated; when NOT NULL, 
+#'                             ALL RDA files in this directory will be loaded and annotated
+#' @param dataFiles            vecotr of RDA files to be annotated
+#' @param metaFiles            vector of meta data XLSX files, including sample annotation
+#'                             marker information and cell type definitions files (default = NULL)
+#' @param metaDataFile         RDA file of pre-compiled meta data (default = NULL)
+#' @param numThreads           integer; number of threads
+#' @param filterExclusions     logical indicating whether to remove cells marked with any text
+#'                             in 'EXCLUDE' column; default = FALSE
+#' @param controlMarker        marker whose negativity indicated the cell is not usable; these
+#'                             cells are removed
+#'
+#' @return all annotated data
 annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL, 
                           metaFiles = NULL, metaDataFile = NULL, numThreads = 1, 
                           filterExclusions = FALSE, controlMarker = "DAPI"){

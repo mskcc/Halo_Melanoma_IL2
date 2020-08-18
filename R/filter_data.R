@@ -62,6 +62,8 @@ filterDataForCondition <- function(dat, conditionStr, markers){
 #' @param calcUnit  name of column corresponding to the calculation unit of 
 #'                  interest (default: FOV_ID)
 #' @param include   vector of calculation units to keep
+#'
+#' @return subset of dat consisting of only calcuation units in 'include' vector
 filterForCalculationUnits <- function(dat, calcUnit = "FOV_ID", include = NULL){
     if(!is.null(include)){
        if(!all(include %in% dat[[calcUnit]])){
@@ -86,6 +88,7 @@ filterForCalculationUnits <- function(dat, calcUnit = "FOV_ID", include = NULL){
 #'                        the values to keep
 #' @param tumorNbhdCells  vector of UUIDs for cells that fall within the neighborhood of at least
 #'                        one tumor cell
+#'
 #' @return filtered data table
 filterForComparisonGroup <- function(dat, group, tumorNbhdCells = NULL){
     grp <- dat
@@ -190,7 +193,15 @@ filterConditionsByAnalysisType <- function(condIdx, analysisType){
     select_if(function(x){ !all(is.na(x)) })
 }
 
-
+#' Filter table of neighborhood data for neighborhood cells
+#' that satisfy all filter criteria including classifiers and/or positive markers
+#' 
+#' @param dat   data tibble of neighborhood data including columns for Center cells
+#'              and columns for Neighborhood cells
+#' @param nbhd  comma-delimited character string describing neighborhood cells to keep
+#'              (e.g., "Tconv8,PD1,LAG3,TIM3-")
+#' 
+#' @return  filtered data tibble
 filterForNeighborhood <- function(dat, nbhd){
     n <- unlist(strsplit(nbhd,","))
     classes <- n[!n %in% c(markers, paste0(markers, "-"))]

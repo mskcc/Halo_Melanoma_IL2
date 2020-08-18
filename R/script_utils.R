@@ -49,6 +49,10 @@ processCMD <- function(cArgs, defaults, required, usage, sourceFile = NULL){
         args <- resolveConfig(defaults, cArgs)
     }
 
+    ## to keep argument names in yaml file, placeholder "~" is used, but means null. 
+    ## change them to actually be null in order to avoid confusion
+    args[args == "~"] <- NULL
+
     checkRequiredInput(args, required, usage())
 
     args

@@ -96,4 +96,24 @@ removeLegend <- function(plt){
     return(tmp)
 }
 
+#' Force two ggplot table objects to have the same height
+#'
+#' Given two ggplot table objects, change the height of the second
+#' to match the first
+#'
+#' @param g1  a ggplot table object from which to pull the desired height
+#' @param g2  a ggplot table object; the height of this object will be
+#'            changed to the height value of g1
+#' 
+#' @return a list where each element is one of the ggplot tables passed
+#'         to the function, with the height of the second changed to equal
+#'         the height of the first
+matchPanelHeights <- function(g1, g2){
 
+    panelIDs <- unique(g1$layout[grepl("panel", g1$layout$name), "t"])
+    heights <- g1$heights[panelIDs]
+
+    g2$heights[panelIDs] <- unit.c(do.call(unit, list(heights, 'null')))
+
+    return(list(g1,g2))
+}

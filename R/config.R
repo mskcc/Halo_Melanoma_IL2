@@ -28,6 +28,7 @@ ls_full_path <- function(path, pattern = NULL){
 #' @param cfg  config in list form; character values for all key names 
 #'             ending with "_dir" and NOT beginning with "source_" are assumed
 #'             to be full paths to directories to be created
+#'
 #' @return nothing
 dir_setup <- function(cfg){
     
@@ -51,6 +52,7 @@ dir_setup <- function(cfg){
 #'                  each 'source_*' key in cfg (e.g., 'source_meta_data' in cfg
 #'                  should have 'meta_data' in defaults; this is the dir where
 #'                  links will live
+#'
 #' @return nothing
 link_input <- function(cfg, defaults){
 

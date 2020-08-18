@@ -59,7 +59,7 @@ rule index_conditions:
         conds_xlsx = config['statistics_conditions_file'],
         annotation_config = config['annotation_config_file']
     output:
-        config['statistics_conditions_index']
+        protected(config['statistics_conditions_index'])
     shell:
         "Rscript {src}/scripts/index_conditions.R " +
             " --statistics_conditions_file {input.conds_xlsx} " +
@@ -72,7 +72,7 @@ rule annotate_cells:
         meta_data_file = rules.compile_meta_data.output, 
         data_files = config['data_dir'] + "/{sample}_MegaTableV5b_Excl_SOX10reThres_Rule2__TnullFix.rda"
     output:
-        config['cell_data_dir'] + "/{sample}_annotated_cells.rda"
+        protected(config['cell_data_dir'] + "/{sample}_annotated_cells.rda")
     resources:
         threads = 1,
         mem = 14
@@ -108,7 +108,7 @@ rule calculate_interface_area:
         halo_boundaries_file = config['halo_boundaries_file']
     output:
         config['infiltration_area_dir'] + "/{tumor}_infiltration_band_areas.rda",
-        config['band_dir'] + "/{tumor}_infiltration_bands.rda"
+        protected(config['band_dir'] + "/{tumor}_infiltration_bands.rda")
     resources:
         threads = 1,
         mem = 22
@@ -129,7 +129,7 @@ rule calculate_fov_area:
         data_files = config['data_dir'] + "/{sample}_MegaTableV5b_Excl_SOX10reThres_Rule2__TnullFix.rda",
         halo_boundaries_file = config['halo_boundaries_file']
     output:
-        config['fov_area_dir'] + "/{sample}_fov_areas.rda"
+        protected(config['fov_area_dir'] + "/{sample}_fov_areas.rda")
     resources:
         threads = 1,
         mem = 14
@@ -158,36 +158,36 @@ rule calculate_interface_metrics:
         tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
         tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
     output:
-        config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
-        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
+        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda')
     resources:
         threads = 1,
         mem = 16
@@ -218,11 +218,11 @@ rule calculate_fov_metrics:
         tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
         tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
     output:
-        config['metrics_dir'] + '/fovs/{sample}_counts_per_FOV_ID.rda',
-        config['metrics_dir'] + '/fovs/{sample}_densities_per_FOV_ID.rda',
-        config['metrics_dir'] + '/fovs/{sample}_fractions_per_FOV_ID.rda',
-        config['metrics_dir'] + '/fovs/{sample}_neighborhood_averages_per_FOV_ID.rda',
-        config['metrics_dir'] + '/fovs/{sample}_neighborhood_mean_fractions_per_FOV_ID.rda'
+        protected(config['metrics_dir'] + '/fovs/{sample}_counts_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/fovs/{sample}_densities_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/fovs/{sample}_fractions_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/fovs/{sample}_neighborhood_averages_per_FOV_ID.rda'),
+        protected(config['metrics_dir'] + '/fovs/{sample}_neighborhood_mean_fractions_per_FOV_ID.rda')
     resources:
         threads = 1,
         mem = 10
@@ -271,12 +271,17 @@ rule report_stats:
         mem = 32
     shell:
         "Rscript {src}/scripts/report_statistics.R" +
-             " --manifest input/config/study_config.yaml" +
+             #" --manifest input/config/study_config.yaml" +
              " --annotation_config_file " + config['annotation_config_file'] +
-             " --cell_data_dir " + config['cell_data_dir'] +
-             " --fov_area_dir " + config['fov_area_dir'] +
-             " --band_dir " + config['band_dir'] +
              " --metrics_dir " + config['metrics_dir'] +
+             " --cell_data_dir " + config['cell_data_dir'] +
+             " --band_dir " + config['band_dir'] + 
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --neighborhood_dir " + config['neighborhood_dir'] +
+             " --neighborhood_data_dir " + config['neighborhood_data_dir'] +
+             " --neighborhood_metrics_dir " + config['neighborhood_metrics_dir'] +
+             " --tme_by_cell_dir " + config['tme_by_cell_dir'] +
+             " --meta_dir " + config['meta_dir'] +
              " --infiltration_area_dir " + config['infiltration_area_dir'] +
              " --statistics_config_file " + config['statistics_config_file'] +
              " --statistics_questions_file " + config['statistics_questions_file'] +
@@ -284,10 +289,47 @@ rule report_stats:
              " --question {wildcards.question}"
 
 
+rule plot_stats_detail:
+    input:
+        config['statistics_tables_dir'] + '/{question}.xlsx',
+        config['plot_config_file'],
+        config['detail_figure_config_file']
+    output:
+        config['statistics_detail_dir'] + '/{question}_fractions_detail.pdf',
+        config['statistics_detail_dir'] + '/{question}_fractions_detail.xlsx',
+        config['statistics_detail_dir'] + '/{question}_densities_detail.pdf',
+        config['statistics_detail_dir'] + '/{question}_densities_detail.xlsx'
+    resources:
+        threads = 1,
+        mem = 32
+    shell:
+        "Rscript {src}/scripts/plot_stats_detail.R " +
+            " --figure_config_file " + config['detail_figure_config_file'] +
+            " --plot_color_file " + config['plot_config_file'] + 
+            " --statistics_detail_dir " + config['statistics_detail_dir'] + 
+            " --statistics_conditions_file " + config['statistics_conditions_file'] +
+            " --statistics_conditions_index " + config['statistics_conditions_index'] +
+            " --statistics_questions_file " + config['statistics_questions_file'] +
+            " --statistics_tables_dir " + config['statistics_tables_dir'] +
+            " --metrics_dir " + config['metrics_dir'] +
+            " --cell_data_dir " + config['cell_data_dir'] +
+            " --band_dir " + config['band_dir'] + 
+            " --fov_area_dir " + config['fov_area_dir'] +
+            " --neighborhood_dir " + config['neighborhood_dir'] + 
+            " --neighborhood_data_dir " + config['neighborhood_data_dir'] +
+            " --neighborhood_metrics_dir " + config['neighborhood_metrics_dir'] +
+            " --tme_by_cell_dir " + config['tme_by_cell_dir'] +
+            " --meta_dir " + config['meta_dir'] +
+            " --question_number {wildcards.question}" 
+
+
 rule run_pipeline:
     input:
         rules.summarize_cell_counts.output,
-        expand(config['statistics_tables_dir'] + '/{question}.xlsx', question=questions)
+        expand(config['statistics_detail_dir'] + '/{question}_fractions_detail.pdf', question=questions),
+        expand(config['statistics_detail_dir'] + '/{question}_densities_detail.pdf', question=questions),
+        expand(config['statistics_detail_dir'] + '/{question}_fractions_detail.xlsx', question=questions),
+        expand(config['statistics_detail_dir'] + '/{question}_densities_detail.xlsx', question=questions)
     output:
         touch(config['log_dir'] + "/PIPELINE_COMPLETE") 
     shell:

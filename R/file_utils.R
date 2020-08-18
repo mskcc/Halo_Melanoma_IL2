@@ -7,6 +7,7 @@
 #' @param path      path containing basename from which file extension 
 #'                  will be extracted
 #' @param expected  optional character vector of expected file extensions
+#'
 #' @return if path contains an expected file type, the file extension is returned
 validFileType <- function(path, expected = NULL){
     ext <- tools::file_ext(path)
@@ -87,8 +88,8 @@ getFiles <- function(path=NULL, files=NULL, pattern=NULL){
 #' Determine whether a file exists and is not empty
 #' 
 #' @param fileName  file name
+
 #' @return logical
-#' @export
 fileDone <- function(fileName){
     !is.null(fileName) && length(fileName) > 0 && file.exists(fileName) && file.size(fileName) > 0
 }
@@ -98,8 +99,8 @@ fileDone <- function(fileName){
 #' 
 #' @param lst  list of study parameters
 #' @param key  key of file to test
+
 #' @return logical
-#' @export
 needToWrite <- function(lst, key){
     is.null(lst[[key]]) || length(lst[[key]]) == 0 || !file.exists(lst[[key]])
 }

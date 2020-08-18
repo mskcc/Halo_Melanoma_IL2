@@ -6,6 +6,7 @@
 #'
 #' @param combo   comma-delimited string of marker combination
 #' @param mrkrs   vector of all individual markers ordered by priority
+#'
 #' @return  character string of formatted integers to allow for proper sorting
 customComboOrder <- function(combo, mrkrs){
    if(is.na(combo)){ return(NA) }
@@ -30,6 +31,7 @@ customComboOrder <- function(combo, mrkrs){
 #'                         - if the list element is null/empty, values in that column will 
 #'                           be naturally sorted (numerically for numbers and alphanumerically 
 #'                           for character strings
+#'
 #' @return sorted conditions table
 arrangeConditions <- function(conds, howToArrange){
     arrange_by <- c()
@@ -64,6 +66,7 @@ arrangeConditions <- function(conds, howToArrange){
 #'                         * NOTE: these vectors should include negatives 
 #'                                 (e.g., c(PD1, PD1-, TIM3, TIM3-, LAG3, LAG3-))
 #'                         * NOTE 2: markers will be sorted in the order they appear in the vector
+#'
 #' @return  single-row tibble with columns mentioned above filled in
 normalizeCondition <- function(condStr, cellTypes, funcMarkers, funcCombos){
     tibble(CellDesc      = condStr,
@@ -87,6 +90,7 @@ normalizeCondition <- function(condStr, cellTypes, funcMarkers, funcCombos){
 #' @param sheets             names of sheets considered 'general' analyses
 #' @param arrangeAnnotation  list describing how conditions should be arranged (see arrangeConditions())
 #' @param firstID            the first ID to use when assigning cell state IDs (default = 1)
+#'
 #' @return table of parsed & sorted conditions with unique IDs assigned
 indexGeneralConditions <- function(condFile, sheets, arrangeAnnotation = NULL, firstID = 1){
 
@@ -138,6 +142,7 @@ indexGeneralConditions <- function(condFile, sheets, arrangeAnnotation = NULL, f
 #' @param sheets             names of sheets considered 'spatial' analyses
 #' @param arrangeAnnotation  list describing how conditions should be arranged (see arrangeConditions())
 #' @param firstID            the first ID to use when assigning cell state IDs (default = 1)
+#'
 #' @return table of parsed & sorted conditions with unique IDs assigned
 indexSpatialConditions <- function(condFile, sheets, arrangeAnnotation = NULL, firstID = 1){
 
@@ -241,6 +246,7 @@ underscoreToUpper <- function(str){
 #'               where 'Sample' corresponds to 'CellDive_ID' in annotation and 
 #'               'SPOT' corresponds to 'FOV_number' in annotation
 #' @param idMap  table of all IDs including at minimum CellDive_ID and FOV_number
+#'
 #' @return data table with any missing IDs added
 joinIDs <- function(dat, idMap){
     if(all(c("Sample", "SPOT") %in% names(dat))){
@@ -259,10 +265,44 @@ joinIDs <- function(dat, idMap){
     left_join(idMap, by=intersect(names(dat), names(idMap)))
 }
 
+#' Determine whether all values in a vector are NA
+#' 
+#' Determine whether there are any actual values (non-NA) in a vector
+#'
+#' @param x   vector of any value type
+#' 
+#' @return  logical; TRUE if at least one value in x is NOT NA
 not_all_na <- function(x) {!all(is.na(x))}
 
+#' Extract cell classifier from a comma-delimited character
+#' string representing a specific cell state
+#' 
+#' Pull out just the cell type/subtype/tag from a full comma-delimited
+#' character string representing a specific state. Specifically, this function
+#' returns only the first element in a comma-delimited string (everything
+#' to the left of the first comma). If the string contains zero commas,
+#' the entire string is returned.
+#'
+#' @param x   tab-delimited cell state character string
+#'
+#' @return the first element of x (everything to the left of the first comma) 
 extractCT <- function(x) { gsub(",.*", "", x) }
 
+
+#' Get classifier(s) of a certain type based on classifier(s) of a different type 
+#' 
+#' Given a vector of classifiers, get the corresponding classifiers of a single type.
+#' For example, for a vector with classifiers (Tconv4, MHCIIpos_macro, T cell), return
+#' the corresponding Subtype for each of them ("CD4+ T cell", "MHCII+ macrophage", "All").
+#' Note, because there are multiple subtypes that fall under classifier "T cell", the string
+#' "All" is returned.
+#'
+#' @param ct         vector of classifiers, of any type
+#' @param cellTypes  table map of all classifiers including columns "Category", 
+#'                   "Cell_type", "Subtype", "Tag"
+#' @param facetCol   Column in cell types containing the classifier type to be returned
+#'
+#' @return vector of classifiers of type [facetCol] corresponding to each one in [ct]
 getClassifier <- function(ct, cellTypes, facetCol){
     ctLvls <- c("Category", "Cell_type", "Subtype", "Tag")
     celltypes <- cellTypes %>% select_at(ctLvls)
@@ -276,6 +316,19 @@ getClassifier <- function(ct, cellTypes, facetCol){
     unlist()
 } 
 
+
+#' Add '+' to positive markers in a comma-delimited cell state string
+#' 
+#' Given a comma-delimited character string representing a cell state, add
+#' a '+' to elements determined to be positive markers. Any element in 
+#' the split string that is NOT the first and does NOT contain a '-' is
+#' assumed to be a positive marker.
+#'
+#' @param condStr   comma-delimited string representing a cell state; the
+#'                  first element is a cell classifier and the remaining elements
+#'                  are any combination of positive and/or negative markers
+#' 
+#' @return cell state string with positive markers explicitly labeled with a '+'
 formatMarkers <- function(condStr){
     sapply(condStr, function(x){
         if(!grepl(",", x)){ return(x) }
@@ -286,373 +339,12 @@ formatMarkers <- function(condStr){
     }) %>% unlist()
 }
 
-getFractionConditionLabel <- function(numerator, denominator, delim = "|"){
-    if(!length(numerator) == length(denominator)){
-        log_warn("length differ between input vectors. results may be incorrect.")
-    }
-    sapply(1:length(numerator), function(x){
-        #cnd <- gsub(paste0(denominator[x], ","), "", numerator[x]) 
-        cnd <- numerator[x]
-        pop <- denominator[x] 
-        paste(cnd, delim, pop)
-    }) %>% unlist()
-}
-
-getDensityConditionLabel <- function(value){
-    sapply(1:length(value), function(x){
-        ifelse(grepl(",", value[x]), 
-            paste0(unlist(strsplit(value[x], ","))[-1], collapse = ","),
-            "All")
-    }) %>% unlist()
-}
-
-getCountConditionLabel <- function(value){
-    value
-}
-
-assignClasses <- function(dat, facets, cellTypes, facetOrder){ 
-    grps <- dat %>% 
-            select_at(unique(c(facets, "Condition", "Population"))) %>% 
-            mutate(ct = extractCT(Condition))
-    for(classType in facets[facets %in% names(cellTypes)]){
-        grps <- grps %>%
-                mutate(!!as.name(classType) := getClassifier(ct, cellTypes, classType))
-        grps[[classType]][is.na(grps[[classType]])] <- ""
-    }
-    grps <- grps %>% select(-ct) %>% unique()
-
-    for(classType in facets){
-        grps[[paste0(classType, "_order")]] <- customOrder(grps[[classType]], facetOrder[[classType]])
-        grps[[classType]] <- factor(grps[[classType]], levels = facetOrder[[classType]])
-    }
-    dat %>%  
-    select_at(names(dat)[!names(dat) %in% facets]) %>%
-    left_join(grps, by=intersect(names(.), names(grps))) %>%
-    arrange_at(paste0(facets, "_order")) 
-}
-
-getCondOrderByPopulation <- function(dat, popOrder = NULL){
-    if(!is.null(popOrder)){
-        vals <- extractCT(dat$Population)
-        dat$popOrder <- customOrder(vals, popOrder)
-    } else {
-        dat$popOrder <- as.numeric(dat$`Cell State ID`)
-    }
-    dat
-}
 
 
 getAbbrev <- function(longAbbrev, subscript){
     sapply(1:length(longAbbrev), function(x){
         gsub(subscript[x], "", longAbbrev[x])
     }) %>% unlist()
-}
-
-setConditionOrder <- function(conds, ids, cellTypes, statsFile = NULL, sheet = NULL, 
-                              orderBy = "Cell State ID", calcType = "fractions",
-                              facetY = NULL, facetOrder = NULL, popOrder = NULL, idOrder = NULL){
-
-    ids <- as.numeric(ids)
-
-    ## eliminate any irrelevant columns
-    cnds <- conds %>%
-            mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>%
-            filter(`Cell State ID` %in% ids) %>%
-            select(`Cell State ID`, Condition, Population, Cell_type, Subtype) %>%
-            mutate(Condition = formatMarkers(Condition),
-                   Population = formatMarkers(Population)) %>%
-            left_join(cellTypes %>% select(Cell_type, Subtype, Tag, Abbrev, Subscript),
-                      by = intersect(names(.), c("Cell_type", "Subtype", "Tag")))
-
-    ## data already contains Cell_type column associated with NUMERATOR condition, 
-    ## but we need to change that in this case to match the DENOMINATOR condition
-    if(!is.null(facetY)){
-        cnds <- assignClasses(cnds, facetY, cellTypes, facetOrder = facetOrder)
-    } else {
-        cnds$facet <- NA
-    }
-
-    if(calcType == "fractions"){
-        cnds <- cnds %>%
-                mutate(Cond = getFractionConditionLabel(Condition, Population))
-    } else if(calcType == "densities"){
-        cnds <- cnds %>%
-                mutate(Cond = getDensityConditionLabel(Condition))
-    }
-
-    if(!is.null(idOrder)){
-        cnds <- cnds %>%     
-                mutate(ID_order = customOrder(as.character(`Cell State ID`), as.character(idOrder))) %>%
-                arrange(desc(ID_order)) %>%
-                mutate(labelY = row_number()) %>%
-                group_by_at(facetY) %>%
-                mutate(y = row_number()) %>%
-                ungroup() %>%
-                select_at(c("Cell State ID", "Condition", "Population", "Cond", facetY, "y",
-                         "Tag", "Abbrev","Subscript", "labelY"))
-        cnds$Tag[cnds$Tag == ""] <- "All"
-        cnds$y <- factor(cnds$y, levels = unique(cnds$y))
-        return(cnds)
-    }
-
-
-    ## if rows are to be ordered based on denominator population, we need a new column
-    ## on which we can sort
-    cnds <- cnds %>% getCondOrderByPopulation(popOrder = popOrder)
-
-    if(!orderBy %in% names(cnds)){
-        if(any(is.null(c(statsFile, sheet)))){ 
-            stop(paste0("Can not order by ", orderBy, ". Did you forget to provide statsFile or sheet?")) 
-        }
-        dat <- xlsx::read.xlsx(statsFile, sheet, check.names = F) %>% as_tibble() 
-        cnds <- cnds %>% 
-                left_join(dat %>% 
-                          mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>% 
-                          select_at(c("Cell State ID", orderBy)),
-                          by = intersect(names(.), c("Cell State ID", orderBy)))
-    }
-
-    ##### TO DO: FIX THIS TO NOT IMPROPERLY ASSUME THAT 1) FACETY IS NOT NULL AND 2) LENGTH FACETY IS 2
-    cnds <- cnds %>%
-            mutate(!!as.name(paste0(orderBy,"_order")) := ifelse(!!as.name(orderBy) <= 1, 1, 0)) %>%
-            arrange(desc(!!as.name(paste0(facetY[1],"_order"))), desc(!!as.name(paste0(facetY[2],"_order"))),
-                    desc(!!as.name(paste0(orderBy, "_order"))), abs(log(!!as.name(orderBy)) )) %>%
-            mutate(labelY = row_number()) %>%
-            group_by_at(facetY) %>%
-            mutate(y = row_number()) %>%
-            ungroup() %>%
-            select_at(c("Cell State ID", "Condition", "Population", "Cond", facetY, "y",
-                        "Tag", "Abbrev","Subscript", "labelY")) 
-
-    cnds$Tag[cnds$Tag == ""] <- "All"
-    cnds$y <- factor(cnds$y, levels = unique(cnds$y))
-    cnds
-
-}
-
-formatConditionsForPlotting <- function(conds, includeIDs, calcType, cellTypes, orderBy = NULL,
-                                        statsFile = NULL, sheet = NULL, idOrder = NULL, 
-                                        facetY = NULL, facetOrder = NULL, popOrder = NULL){
-
-    cnds <- setConditionOrder(conds, includeIDs, cellTypes, orderBy = orderBy,
-                              statsFile = statsFile, sheet = sheet, idOrder = idOrder,
-                              facetY = facetY, facetOrder = facetOrder)
-
-    cnds <- cnds %>%
-            gather(c("Cond", "Cell State ID"), key = "Column", value = "Value") %>%
-            mutate(hjust = ifelse(Column == "Cond", 0.5, 1))
-
-    if(ct == "densities"){
-        cnds$Value = gsub(" \\|.*", "", cnds$Value)
-    }
-
-    cnds$Column <- factor(cnds$Column, levels = c("Cond", "Cell State ID"))
-    cnds
-}
-
-
-formatForOverallvsIndiv <- function(overallFile, indivFiles, idsToPlot, max.fdr = 0.05, 
-                                   dataCol = "Fraction", effectCol = "Odds Ratio", 
-                                   statUnit = "Patient"){
-
-    sheet <- "all_fractions_and_densities"
-    signifCol <- paste(dataCol, "adjusted p.value")
-    pvalCol   <- paste(dataCol, "p.value")
-    overall <- read.xlsx(overallFile, sheet, check.names = F) %>% as_tibble() %>%
-               mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>%
-               filter(`Cell State ID` %in% idsToPlot) 
-
-    countCols <- names(overall)[grepl("total cell count", names(overall))]
-    medCols   <- names(overall)[grepl(paste("median",tolower(dataCol)), names(overall))]
-
-    overall <- overall %>%
-               select(`Cell State ID`, `Cell State`, Population, 
-                      OverallSubpopulationCount = !!as.name(countCols[1]), 
-                      OverallPopulationCount = !!as.name(countCols[2]),
-                      OverallGroup1Median = !!as.name(medCols[1]), 
-                      OverallGroup2Median = !!as.name(medCols[2]),
-                      OverallEffect = !!as.name(effectCol), 
-                      OverallPval = !!as.name(pvalCol), 
-                      OverallFDR = !!as.name(signifCol))
-
-    
-    match_status <- function(indivEffect, allEffect, indivFDR, max.fdr = 0.05){
-        lapply(1:length(indivEffect), function(x){
-            if(is.na(indivEffect[x])){ return("stats unavailable") }
-            if(is.na(allEffect[x])){ return(NA) }
-
-            if(all(c(indivEffect[x], allEffect[x]) > 1) || all(c(indivEffect[x], allEffect[x]) < 1)){
-                ifelse(indivFDR[x] < max.fdr, 
-                       "LOR same direction, FDR < 0.05",
-                       "LOR same direction, FDR \u2265 0.05")
-            } else {
-                "LOR opposite direction"
-            }
-
-         }) %>% unlist()
-    }
-
-    get_value <- function(indivEffect, allEffect){
-        lapply(1:length(indivEffect), function(x){
-
-            if(is.na(indivEffect[x])){ return(NA) }
-            if(is.na(allEffect[x])){ return(NA) }
-
-             if(all(c(indivEffect[x], allEffect[x]) > 1) || all(c(indivEffect[x], allEffect[x]) < 1)){
-                 indivEffect[x] 
-             } else {
-                 -1
-             }
-
-        }) %>% unlist()                 
-    } 
-
-    dat <- tibble()
-    for(ind in indivFiles){
-        #print(ind)
-        id <- gsub(".xlsx", "", basename(ind))
-        prfx <- "Indiv"
-        indivEffect <- "IndivEffect" 
-        indivSignif <- "IndivFDR" 
-        indivPval   <- "IndivPval"
-        overallEffect <- "OverallEffect"
-
-        stats <- read.xlsx(ind, sheet, check.names = F) %>%
-                 as_tibble() %>%
-                 mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>%
-                 filter(`Cell State ID` %in% idsToPlot) %>%
-                 rename(!!as.name(indivEffect) := effectCol,
-                        !!as.name(indivPval) := pvalCol,
-                        !!as.name(indivSignif) := signifCol) %>%
-                 left_join(overall, by = intersect(names(overall), names(.))) %>%
-                 mutate(!!as.name(statUnit) := id,
-                        Status = match_status(!!as.name(indivEffect),
-                                              !!as.name(overallEffect),
-                                              !!as.name(indivSignif),
-                                              max.fdr = max.fdr),
-                        Value = get_value(!!as.name(indivEffect),
-                                          !!as.name(overallEffect)),
-                        signif = ifelse(!!as.name(indivSignif) < max.fdr, "*", NA)
-                 ) %>%
-                 select_at(c("Cell State ID", "Cell State", "Population", 
-                             names(overall)[grepl("Overall", names(overall))], 
-                             indivEffect, indivPval, indivSignif, 
-                             statUnit, "Status", "Value", "signif")) 
-                         
-        dat <- dat %>% bind_rows(stats)
-    }
-        
-    dat$Status <- factor(dat$Status, 
-                         levels = c("LOR same direction, FDR < 0.05", 
-                                    "LOR same direction, FDR \u2265 0.05",
-                                    "LOR opposite direction",
-                                    "stats unavailable"))
-    dat
-
-}
-
-formatStatsForPlottingEffects <- function(statsFile, sheet, calcType, dataCol, allConds, ids, 
-                                          facetY = NULL, facetOrder = NULL, cellTypes = NULL,
-                                          popOrder = NULL, orderBy = NULL, idOrder = NULL){
-
-    cnds <- setConditionOrder(conds, ids, cellTypes, orderBy = orderBy, 
-                              statsFile = statsFile, sheet = sheet, idOrder = idOrder,
-                              facetY = facetY, facetOrder = facetOrder)
-
-    effect <- ifelse(dataCol == "Fraction", "Odds Ratio", "Fold Change")
-    stats <- xlsx::read.xlsx(statsFile, sheetName = sheet, check.names = F) %>%
-             as_tibble() %>%
-             select(`Cell State ID`, `Cell State`, Population, dplyr::matches(dataCol), 
-                    !!as.name(effect), paste0(dataCol," adjusted p.value"), 
-                    paste0(dataCol, " CI.low"), paste0(dataCol," CI.high")) %>%
-             mutate(Condition = `Cell State`, `Cell State ID` = as.numeric(`Cell State ID`)) %>%
-             filter(`Cell State ID` %in% ids)
-
-    if(is.null(stats)){ stop("Couldn't find appropriate sheet in stats file") }
-
-    names(stats) <- gsub(paste0("^",dataCol," "),"",names(stats))
-
-    if(nrow(stats) <= 1){  
-        log_warn("    WARNING: no statistics available for this question.")
-        return(NULL) 
-    }
-
-    ## format y labels
-    stats <- stats %>%
-             unique() %>%
-             ungroup() %>%
-             select(-Condition, -Population) %>%   ## do this because they may have changed for facetting purposes
-             mutate(signif = signifStars(`adjusted p.value`)) 
-
-    stats %>% left_join(cnds, by = intersect(names(.), names(cnds)))
-}
-
-formatFOVdataForPlottingDetail <- function(question, sGrps, dat, condsToPlot, allConds, analyses, 
-                                           calcType, dataCol, markers, metricsDir, orderBy = NULL,
-                                           statsFile = NULL, sheet = NULL,
-                                           nbhdCounts = NULL, tumorNbhdCells = NULL, calcUnit = "FOV_ID",
-                                           facetY = NULL, facetOrder = NULL, cellTypes = NULL,
-                                           popOrder = NULL, idOrder = NULL){
-
-    condsToPlot <- as.numeric(condsToPlot)
-    cnds <- setConditionOrder(allConds, condsToPlot, cellTypes, orderBy = orderBy,
-                              statsFile = statsFile, sheet = sheet, idOrder = idOrder, 
-                              facetY = facetY, facetOrder = facetOrder)
-
-    qDat <- suppressMessages(getQuestionData(question, sGrps, dat, analyses, calcType, markers, metricsDir,
-                                             nbhdCounts = nbhdCounts, calcUnit = calcUnit,
-                                             tumorNbhdCells = tumorNbhdCells)) 
-    if(is.null(qDat)){
-        log_warn("   WARNING: One or more groups in this question contains no data. Skipping.\n")
-        return(NULL)
-    }
-
-    qcQuestionGroups(qDat, names(analyses), question$groupVar)
-
-    log_debug("Calculating Q1,Q3,Median & IQR")
-
-    maxx <- ifelse(calcType == "fractions", 1, 10^4) 
-    minx <- ifelse(calcType == "densities", 10^-1, 0)
-
-    selCols <- c("Cell State ID", facetY[facetY %in% names(.)], "Condition", "Population",
-                 question$groupVar, calcUnit, dataCol)
-
-    fovDat <- qDat[[calcType]] %>% 
-              ungroup() %>%
-              mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>%
-              filter(`Cell State ID` %in% condsToPlot) %>%
-              select_at(selCols[selCols %in% names(.)]) %>%
-              group_by_at(c("Cell State ID", question$groupVar)) %>%
-              mutate(Median = median(!!as.name(dataCol), na.rm=T),
-                     Q1 = summary(!!as.name(dataCol), na.rm=T)[2],
-                     Q3 = summary(!!as.name(dataCol), na.rm=T)[4],
-                     IQR = Q3 - Q1,
-                     min = max(Q1 - (1.5*IQR), minx, na.rm=T),
-                     max = min(Q3 + (1.5*IQR), maxx, na.rm=T))
-
-    if(!"Condition" %in% names(fovDat)){
-        fovDat <- fovDat %>% mutate(Condition = Population)
-    }
-
-    ## adjust group labels
-    grpLbls <- fovDat %>% 
-               ungroup() %>%
-               select_at(c(calcUnit, question$groupVar)) %>%
-               unique() %>%
-               group_by_at(quest$groupVar) %>%
-               summarize(Count = n()) %>%
-               mutate(GroupLabel = paste0(!!as.name(quest$groupVar), " (FOVs=", Count, ")")) %>%
-               select(-Count)
-    grpLbls$GroupLabel <- factor(grpLbls$GroupLabel, levels = unique(grpLbls$GroupLabel))
-
-    fovDat <- fovDat %>% 
-              left_join(grpLbls, by = c(question$grpVar)) %>% 
-              ungroup() %>%
-              select(-Condition, -Population) %>%   ## do this because they may have changed for facetting purposes
-              left_join(cnds, by = intersect(names(.), names(cnds)))
-
-    fovDat
-
 }
 
 
@@ -682,128 +374,6 @@ removeRedundantClass <- function(state, pop){
     unlist()
 }
 
-#' Format cell type data to be used as condition annotation
-#' 
-#' Format cell type data to be used as condition annotation
-#' 
-#' @param allData               table of all data to be plotted, including columns Cell_type, Condition, Category,
-#'                              and any columns included in annotation_order
-#' @param duplicate_conds_file  file to which all duplicate conditions will be written (as a warning)
-#' @param annotation_order      order in which annotation column ordering should be done 
-#' @param functional_order      order in which Functional values should appear in data
-#' @param cell_types_order      order in which Cell_type values should appear in data
-#' @param subtypes_order        order in which Subtype values should appear in data
-#' @param combine_all_functional collapse 'Functional' and 'Functional Combinations' into one column, since no
-#'                               condition should have both values
-#' @return annotation data sorted as specified
-formatAnnotationData <- function(allData, duplicate_conds_file, annotation_order = NULL, functional_order = NULL,
-                                 cell_types_order = NULL, subtypes_order = NULL, combine_all_functional = FALSE){
-
-    ## pull out annotation data
-    #annotCols <- c("Cell State ID", "Cell_type", "Subtype", "Abbrev_label_for_figures", "Number Significant", cfg$annotion_order)
-
-    annot <- allData %>%
-             filter(!is.na(Cell_type)) %>%
-             select(unique(c("Condition", "Category", annotation_order))) %>%
-             unique() %>%
-             ungroup()
-
-    ## warn of duplicates 
-    duplicateConditions(annot, annotation_order, outFile = duplicate_conds_file)
-
-    annotCols <- c()
-
-    if(!is.null(annotation_order)){
-        for(ann in annotation_order){
-            if(ann == "Cell State ID"){
-                annotCols <- c(annotCols, "as.numeric(`Cell State ID`)")
-            } else if(ann == "Functional"){
-                funcOrder <- sapply(sort(functional_order), function(x){ which(functional_order == x) })
-                annot$FuncOrder <- sapply(annot$Functional, function(x){ funcOrder[x] })
-                annotCols <- c(annotCols, "FuncOrder")
-            } else if(ann == "Functional Combination"){
-                annot$NumPos <- sapply(annot$`Functional Combination`, function(x){ numPositives(x) })
-                annotCols <- c(annotCols, "desc\\(NumPos\\)")
-            } else if(ann == "Cell_type"){
-                ctOrder <- sapply(sort(cell_types_order), function(x){ which(cell_types_order == x) })
-                annot$CellTypesOrder <- sapply(annot$Cell_type, function(x){ ctOrder[x] })
-                annotCols <- c(annotCols, "CellTypesOrder")
-            } else if(ann == "Subtype"){
-                stOrder <- sapply(sort(cell_types_order), function(x){ which(subtypes_order == x) })
-                annot$SubtypesOrder <- sapply(annot$Subtype, function(x){ stOrder[x] })
-                annotCols <- c(annotCols, "SubtypesOrder")
-            } else {
-                annotCols <- c(annotCols, ann)
-            }
-        }
-    }
-
-    annotCols <- sapply(annotCols, function(x){ ifelse(grepl(" ",x) && !grepl("`", x), add_ticks(x), x) }) %>%
-                        as.vector()
-
-    ## SORT
-    annot <- annot %>% arrange_(annotCols)
-
-    ## if functional cols to be combined, do this AFTER sorting
-    if(combine_all_functional){
-        ## error if any overlap btwn the two cols
-        overlap <- intersect(which(!is.na(annot$FuncOrder)), which(!is.na(annot$NumPos)))
-        if(length(overlap) > 0){ stop("Can't combine single functional markers and marker combinations.") }
-        idxs <- which(is.na(annot$Functional) & !is.na(annot$`Functional Combination`))
-        annot$Functional[idxs] <- annot$`Functional Combination`[idxs]
-        annotation_order <- annotation_order[!annotation_order == "Functional Combination"]
-    }
-
-    ## warn of any conditions dropped after sorting
-    missingConditions(annot, annot %>% pull(Condition))
-
-    ## convert to matrix for Heatmap()
-    annDat <- annot %>%
-              select_at(c("Condition", annotation_order[annotation_order != "Abbrev_label_for_figures"])) %>%
-              data.frame() %>%
-              toMatrix(annot %>% pull(Condition))
-
-    if("Cell_type" %in% names(annDat)){
-        annDat[,"Cell_type"] = unlist(sapply(annDat[,"Cell_type"], function(x){
-                                  paste(strwrap(x, width=15), collapse="\n")
-                               }))
-    }
-    annOrder <- gsub(" ",".",gsub("`","",annotation_order))
-
-    figAnn <- annDat[,annOrder]
-
-    figAnn
-
-}
-
-
-sortRows <- function(dat, ctList, arrangeBy){
-    rws <- list(order = c(), ctBlocks = c())
-
-    dat$Abbrev_label_for_figures[which(dat$Cell_type == dat$Subtype | is.na(dat$Subtype))] <- "All"
-
-    for(ct in names(ctList)){
-        subtypes <- ctList[[ct]]
-        for(st in subtypes){
-
-            if(is.na(st)){
-                stConds <- dat %>% filter(Cell_type == ct, is.na(Subtype))
-            } else {
-                stConds <- dat %>% filter(Cell_type == ct, Subtype == st)
-            }
-            stConds <- stConds %>%
-                       arrange_(.dots = arrangeBy) %>%
-                       select(Condition, Abbrev_label_for_figures)
-            stConds$Abbrev_label_for_figures[is.na(stConds$Abbrev_label_for_figures)] <- "All"
-            #### TEMPORARY::
-            ct2 <- ifelse(ct == "Natural killer cell overall", "Natural killer cell", ct)
-            rws$ctBlocks <- c(rws$ctBlocks, rep(paste(strwrap(ct2,15), collapse="\n"), nrow(stConds)))
-            rws$order <- c(rws$order, stConds$Condition)
-        }
-    }
-    rws$ctBlocks <- factor(rws$ctBlocks, levels = unique(rws$ctBlocks))
-    rws
-}
 
 
 getAllStatsHeatmapData <- function(questionsFile, resDir, calcType,
@@ -952,46 +522,6 @@ extractMarkerCombos <- function(popStr, comboList, excludeSingles=FALSE, singles
 }
 
 
-formatMedians <- function(dat, c2p, groups, calcCol, layout){
-    meds <- dat %>%
-            filter(`Cell State ID` %in% c2p) %>%
-            select(`Cell State ID`, dplyr::matches("Overall Median")) %>%
-            rename_at(vars(names(.)[grepl("Overall Median", names(.))]), 
-                      list(~ gsub(" Overall Median.*", "", .))) %>%
-            gather(2:ncol(.), key = "Group", value = "raw median") %>%
-            left_join(layout, by = "Cell State ID") %>%
-            group_by(`Cell State ID`) %>%
-            mutate(maxMed = max(`raw median`, na.rm=T),
-                   median = `raw median`/maxMed,
-                   y2 = as.numeric(y),
-                   bottom = y2 - 0.5,
-                   top = (y2 - 0.5) + median*0.85)
-
-    medIdxs <- grep("Overall Median", names(meds))
-    names(meds)[medIdxs] <- gsub(" Overall Median.*", "", names(meds)[medIdxs]) 
-
-
-    meds$x     <- customOrder(meds$Group, grps)
-    meds$Group <- factor(meds$Group, levels = grps)
-    meds$y     <- factor(as.numeric(meds$y), levels = seq(0.5, max(as.numeric(meds$y), na.rm=T) + 0.5, 0.5))
-
-    meds
-}
-
-formatIndivDatForPlotting <- function(dat, idMap, layout){
-    iDat <- dat %>%
-            left_join(idMap, by = intersect(names(.), names(idMap))) %>%
-            left_join(layout, by = intersect(names(.), names(layout))) %>%
-            arrange(desc(labelY)) %>%
-            mutate(status = ifelse(Value == -1, "opposite",
-                                   ifelse(Value > 1, "up",
-                                          ifelse(Value < 1, "down",
-                                                 ifelse(Value == 1, "no change", NA)))))
-    iDat$x <- customOrder(iDat$`Lesion ID`, idMap$`Lesion ID`[idMap$`Lesion ID` %in% iDat$`Lesion ID`])
-    iDat$x <- factor(iDat$x, levels = sort(unique(iDat$x)))
-
-    iDat
-}
 
 spreadIndivDat <- function(indivDat, comparison, grp1, grp2, calc, effect, idMap, currentIDcol, newIDcol){
     tbl <- indivDat %>% 

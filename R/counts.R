@@ -13,8 +13,8 @@
 #'                        column names in dat; default=c("Sample","FOV")
 #' @param xlsxFile        name of XLSX file to which counts summaries should be written; if NULL, no
 #'                        XLSX file will be written
+#'
 #' @return list of summary tables
-#' @export
 getMarkerComboCounts <- function(dat, cellTypes, classCols=NULL, summarizeBy=NULL, xlsxFile=NULL){
 
     if(is.null(classCols)){ classCols <- c("Category", "Cell_type", "Subtype", "Tag") }
@@ -64,8 +64,8 @@ getMarkerComboCounts <- function(dat, cellTypes, classCols=NULL, summarizeBy=NUL
 #'                        summarized; default=c("Category","Cell_type","Subtype","Tag")
 #' @param summarizeBy     vector of ways in which data should be grouped; values must be equal to
 #'                        column names in dat; default=c("Sample","FOV")
+#'
 #' @return list of tables, each containing a different summary of counts
-#' @export
 getClassCountSummaries <- function(dat, cellTypes, classCols=NULL, summarizeBy=NULL){
 
     if(is.null(classCols)){ classCols <- c("Category", "Cell_type", "Subtype", "Tag") }
@@ -99,6 +99,17 @@ getClassCountSummaries <- function(dat, cellTypes, classCols=NULL, summarizeBy=N
     return(tbls)
 }
 
+#' Create a cell count summary
+#'
+#' Create a summary of cell counts for each group formed by a specified set of
+#' columns
+#' 
+#' @param dat          cell level tibble (each row represents a single unique cell)
+#'                     to be summarized
+#' @param summarizeBy  vector of column names from dat on which data should be grouped
+#'
+#' @return a tibble of cell/row counts with one row for each combination of column 
+#'         values
 summarizeCellCounts <- function(dat, summarizeBy=NULL){
     
     checkGrouping(names(dat), summarizeBy)
@@ -109,6 +120,19 @@ summarizeCellCounts <- function(dat, summarizeBy=NULL){
 
 }
 
+
+#' Create a count summary for a single cell class
+#' 
+#' Filter data for a specific cell class, group by any one column, get count
+#' for each value in that column & calculate the total cell count
+#
+#' @param dat          cell level tibble (each row represents a single unique cell)
+#'                     to be summarized
+#' @param class        cell class to summarize
+#' @param classType    type of class (Cell_type|Subtype|etc)
+#' @param summarizeBy  vector of column names from dat on which data should be grouped
+#
+#' @return a tibble with columns: Class, Total, and one column per value in 'summarizeBy'
 summarizeClassCounts <- function(dat, class, classType, summarizeBy=NULL){
 
     checkGrouping(names(dat), summarizeBy)
@@ -136,8 +160,8 @@ summarizeClassCounts <- function(dat, class, classType, summarizeBy=NULL){
 #' @param marker   marker to count
 #' @param groupBy  vector of column names to group data by before counting; default=NULL; set to
 #'                 NULL to get total count
+#'
 #' @return tibble of count(s) with one row per group
-#' @export
 countMarker <- function(dat, marker, groupBy=NULL){
 
     checkGrouping(names(dat), groupBy)
@@ -159,8 +183,8 @@ countMarker <- function(dat, marker, groupBy=NULL){
 #' @param marker   vector of markers to count
 #' @param groupBy  column name to group data by before counting; default=NULL; set to
 #'                 NULL to get total counts
+#'
 #' @return table containing a single row for each group and a column for each marker
-#' @export
 getAllIndividualMarkerCounts <- function(dat, markers, groupBy=NULL){
 
     allCounts <- lapply(markers, function(x){ countMarker(dat, x, groupBy=groupBy) }) %>%
@@ -190,8 +214,8 @@ getAllIndividualMarkerCounts <- function(dat, markers, groupBy=NULL){
 #' @param markerCombos    logical; when TRUE, all cell type marker combinations will be counted
 #' @param classes         logical; when TRUE, counts will be summarized by classes
 #' @param touchingMacros  logical; when TRUE, class counts will be repeated on the TM cells only 
+#'
 #' @return list of tibbles, each a different summary of counts
-#' @export 
 getCountSummaries <- function(dat, cellTypes, classCols=NULL, summarizeBy=NULL, xlsxFile=NULL,
                                     markerCombos=TRUE, classes=TRUE, touchingMacros=TRUE){
 
@@ -235,8 +259,8 @@ getCountSummaries <- function(dat, cellTypes, classCols=NULL, summarizeBy=NULL, 
 #' @param cellType    character string to pull from Classifiers column
 #' @param summarizeBy name of column in dat by which counts should be grouped; default
 #'                    is NULL, so counts returned will be for complete data set
+#'
 #' @return table of counts 
-#' @export
 getClassifierCounts <- function(dat, cellType, summarizeBy=NULL){
 
     checkGrouping(names(dat), summarizeBy)
