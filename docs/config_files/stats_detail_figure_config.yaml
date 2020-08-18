@@ -1,0 +1,101 @@
+## Example configuration for detail stats figures and
+## comparison of comparisons figures (detail stats figures with 
+## multiple results sets)
+
+### 'comparisons' list is for double_detail_figure
+### all other top-level lists are for all detail figures
+comparisons:
+  comp1:
+    name: CR vs UT
+    group_1_label: CR
+    group_2_label: UT
+    question_number: 3d
+    indiv_question_prefix: "3c,Pt"
+    indiv_question_pattern: ~
+    indiv_question_numbers: 
+      - 3c,Pt0,CR
+      - 3c,Pt1,CR
+      - 3c,Pt4,CR1
+      - 3c,Pt4,CR2
+      - 3c,Pt4,CR3
+      - 3c,Pt6,CR1
+      - 3c,Pt6,CR2
+
+  comp2: 
+    name: non-CR vs UT
+    group_1_label: non-CR
+    group_2_label: UT
+    question_number: 3e
+    indiv_question_prefix: "3c,Pt"
+    indiv_question_pattern: ~
+    indiv_question_numbers:
+      - 3c,Pt0,nonCR
+      - 3c,Pt1,nonCR
+      - 3c,Pt2,nonCR1
+      - 3c,Pt2,nonCR2
+      - 3c,Pt3,nonCR
+      - 3c,Pt5,nonCR
+
+
+## detail figures are generally facetted by Cell_type and Tag (which
+## is an alternative label for Subtype). Here, define the order in which
+## facet levels should appear. Labels must match exactly as they are
+## listed in cell types meta data file (XLSX) 
+facet_order:
+    Cell_type:
+        - Immune
+        - Tumor
+        - T cell
+        - B cell
+        - Natural killer cell overall
+        - Macrophage/monocyte
+        - Other leukocyte
+        - ''  #### IMPORTANT TO INCLUDE EMPTY STRING FOR FACET SPACERS
+    Tag:
+        - All
+        - Immune
+        - Tumor
+        - T cell
+        - Tconv4
+        - Tconv8
+        - Treg4
+        - Treg8
+        - T4_8
+        - Tnull
+        - B
+        - Natural killer cell overall
+        - NK
+        - NKT
+        - NKT8
+        - NKT4
+        - Macrophage/monocyte
+        - MHCIIpos_macro
+        - MHCIIneg_macro
+        - Other_macro
+        - Other_leuk
+        - '' ##### IMPORTANT TO INCLUDE EMPTY STRING FOR FACET SPACERS
+
+## distinguish between fraction results and density results
+calculations:
+    fractions:
+        calc_column: Fraction         # string prepended to stats results for fraction comparisons 
+        effect_column: Odds Ratio     # effect size label for fraction comparisons
+        effect_abbreviation: OR       # effect size label abbreviation
+        y_facets: [Cell_type, Tag]    # columns from cell types definitions table used for row facetting
+    densities:
+        calc_column: Density
+        effect_column: Fold Change
+        effect_abbreviation: FC
+        y_facets: [Cell_type, Tag]
+
+## these 'biological' filters are used to determine which 
+## conditions should be included in visualizations (when
+## not chosen manually)
+bio_filter:
+    minimum_subpopulation_count: 300  # minimum total supopulation count
+    minimum_population_count: 1000    # minimum total population count
+    minimum_median_difference: 0.1    # minimum difference between medians
+    fdr_cutoff: 0.05                  # filter for FDR < fdr_cutoff
+
+
+

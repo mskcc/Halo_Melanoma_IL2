@@ -1,0 +1,133 @@
+## log directory
+log_dir: logs
+
+## directory containing all config files
+config_dir: input/config
+
+## directory of all meta data files (XLSX)
+meta_dir: input/meta
+
+## directory containing CSV files of Halo data; during configuration,
+## CSV files from original Halo output directory will be soft linked here
+halo_csv_dir: input/halo_csv
+
+## directory containing stain images; during configuration, original image
+## files will be linked here
+halo_image_dir: input/halo_images
+
+## directory containing Halo XML boundary annotations files; during
+## configuration, original Halo XML files will be linked here
+halo_boundaries_xml_dir: input/halo_boundaries
+
+## output directory for CSV to RDA conversion step of pipeline
+raw_data_dir: preprocessing/00_raw
+
+## output directory for boundary XML to RDA conversion step 
+halo_boundaries_rda_dir: preprocessing/00_halo_boundaries
+
+## output directory for drift/loss summary step
+drift_summary_dir: preprocessing/00_drift_summaries
+
+## output directory for RDA files with cells to be excluded marked
+exclusion_data_dir: preprocessing/01_exclusions
+
+## output directory for excluded, rethresholded RDA files
+data_dir: preprocessing/02_rethresholded
+
+## output directory for annotated cell data files
+cell_data_dir: preprocessing/03_annotated
+
+## output directory for cell band assignment and area calculations (RDA)
+band_dir: preprocessing/03_infiltration_band_data
+
+## output directory for cell to cell distance files
+neighborhood_dir: preprocessing/04_neighborhoods/all_vs_all
+
+## output directory for formatted neighborhood counts files
+neighborhood_data_dir: preprocessing/04_neighborhoods/formatted
+
+## output directory for microenvironment assignments
+microenvironment_dir: preprocessing/05_microenvironments
+
+## directory of sample level microenvironment assignments
+tme_by_sample_dir: preprocessing/05_microenvironments/sample_status
+
+## directory of cell level microenvironment assignments
+tme_by_cell_dir: preprocessing/05_microenvironments/cell_status
+
+## directory for qc measures
+qc_dir: qc
+
+## XLSX file containing a manually created list of cell states/conditions
+## to be analyzed
+statistics_conditions_file: input/config/stats_conditions.xlsx
+
+## XLSX file containing all questions/sample comparisons
+statistics_questions_file: input/config/stats_questions.xlsx
+
+## single compiled version of annotated cell data from all samples 
+annotated_cells_file: annotated_cells.rda
+
+## RDA file containing formatted halo boundary coordinates
+halo_boundaries_file: halo_boundaries.rda
+
+## compiled meta data file
+meta_data_file: all_meta_data.rda
+
+## directories for pre-calculated metrics
+metrics_dir: processed/metrics
+fov_metrics_dir: processed/metrics/fovs
+fov_area_dir: processed/metrics/fovs/areas
+infiltration_metrics_dir: processed/metrics/infiltration
+infiltration_area_dir: processed/metrics/infiltration/areas
+neighborhood_metrics_dir: processed/metrics/neighborhoods
+
+## directory for all count summaries
+counts_dir: results/counts
+cell_type_marker_counts_file: results/counts/cell_type_marker_combo_counts.xlsx
+
+## directories for all statistics tables and plots
+statistics_dir: results/statistics
+statistics_conditions_index: results/statistics/conditions_index.xlsx
+statistics_tables_dir: results/statistics/tables
+statistics_overview_dir: results/statistics/figures/overviews
+statistics_detail_dir: results/statistics/figures/detail
+statistics_misc_dir: results/statistics/figures/misc
+
+## additional configuration files
+statistics_config_file: input/config/stats_config.yaml
+annotation_config_file: input/config/annotation_config.yaml
+plot_config_file: input/config/global_plot_colors.yaml
+detail_figure_config_file: input/config/stats_detail_figure_config.yaml
+detail_figure_conditions_file: '~'
+condition_detail_config: '~'
+infiltration_density_config: '~'
+
+## number in microns to trim from each FOV to exclude 
+pad: 20.0
+
+## maximum drift allowed (fraction)
+drift_threshold: 0.1
+
+## TO DO: INSERT DESCRIPTION
+max_g: 5.0
+
+## number in microns, the interval width for binning cells inside and
+## outside the tumor boundary
+band_width: 10.0
+
+## distance in microns of the furthest interval to be considered part 
+## of the infiltration analyses 
+max_distance_from_interface: 360.0
+
+## number of threads to use for all parallel components of the pipeline
+number_threads: 6.0
+
+## print verbose log messages
+debug: 'yes'
+
+## ORIGINAL locations of input data, from which files should be linked locally
+source_halo_csv_dir: /ifs/res/samba/Multiomyx/HaloData/attic/Melanoma_IL2_v1/ObjectAnalysisDataSpreadsheets
+source_halo_boundaries_xml_dir: /ifs/res/samba/Multiomyx/HaloData/Melanoma_IL2__Final/HaloCoordinates
+source_halo_image_dir: /ifs/res/samba/Multiomyx/HaloData/Melanoma_IL2__Final/Melanoma_IL2__Final_Scanplans/AllFOVs
+source_meta_dir: /juno/work/bic/byrne/celldive/Melanoma_IL2__Final/analyses/input/meta

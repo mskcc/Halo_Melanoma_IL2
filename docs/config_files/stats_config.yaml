@@ -1,0 +1,254 @@
+## As of August 18, 2020, the only part of this config
+## file that is used is the 'results_filters' list which defines
+## the filter criteria used to generate 'significant' set
+## of stats results, saved in its own tab(s) in stats XLSX files.
+
+
+#############################
+##   FILES & DIRECTORIES   ##
+#
+detail_figure_conditions_file: input/config/200506_detail_figure_conditions_200402stats.xlsx
+duplicate_conds_file: processed/statistics/CHECK_stats_overview_duplicates.xlsx
+
+data_level: FOV
+cell_region: all     ## [all|interface|interface inside|interface outside] 
+plot_calculations: [fractions, densities]
+use_filter: stats_filter_D
+
+results_filters:
+    stats_filter_A:
+        fractions:
+            min.estimate: 3
+            min.cell.count: 1000
+            max.fdr: 0.05
+        densities:
+            min.estimate: 0.25
+            min.cell.count: 1000
+            max.fdr: 0.05
+        nFracs:
+            min.estimate: 3
+            min.cell.count: 1000
+            max.fdr: 0.05
+        nAvgCounts:
+            min.estimate: 0.25
+            min.cell.count: 1000
+            max.fdr: 0.05
+
+    stats_filter_B:
+        fractions:
+            min.estimate: 3
+            min.cell.count: 0
+            max.fdr: 0.05
+        densities:
+            min.estimate: 4
+            min.cell.count: 0
+            max.fdr: 0.05
+        nFracs:
+            min.estimate: 3
+            min.cell.count: 0
+            max.fdr: 0.05
+        nAvgCounts:
+            min.estimate: 4
+            min.cell.count: 0
+            max.fdr: 0.05
+
+    stats_filter_C:
+        fractions:
+            min.estimate: 3
+            min.cell.count: 0
+            max.fdr: 0.05
+        densities:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+        nFracs:
+            min.estimate: 3
+            min.cell.count: 0
+            max.fdr: 0.05
+        nAvgCounts:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+
+    stats_filter_D:
+        fractions:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+        densities:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+        nFracs:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+        nAvgCounts:
+            min.estimate: 2
+            min.cell.count: 0
+            max.fdr: 0.05
+
+###########################
+##     PLOT VARIATIONS   ##
+#  
+#  * any default parameter can be changed in an analysis variation
+#  * any parameter included in the variation config will overwrite the default 
+
+vars_to_run: 
+    #- main_questions
+    #- 3b_by_patient
+    #- main_questions_cell_types_only
+    #- main_questions_functional_combined
+    #- main_questions_functional_collapsed
+    #- 3b_functional_collapsed
+    #- main_questions_no_annotation
+    #- 3b_no_annotation
+    #- 1b_subtype_only
+    #- 3a_subtype_only
+    - 3c_subtype_only
+
+variations:
+#    data_only: 
+#        dataOutFile: /home/byrne/halo/data/Melanoma_IL2__Final/moreExclusions/overall_stats/fov/at_a_glance_plots/ALL_figure_data__fractions.rda
+#        questions: all
+#        save_data: yes
+#        data_only: yes
+
+    main_questions:
+        outFile: results/supervised/statistics/figures/q_1b_2a_3a__fractions.pdf
+        questions: [1b, 2a, 3a]
+        includeComparisonInTitle: yes
+
+    3b_by_patient:
+        outFile: results/supervised/statistics/figures/q_3b_fractions.pdf
+        questions: ['3b,Pt0', '3b,Pt1', '3b,Pt2', '3b,Pt3', '3b,Pt4', '3b,Pt5', '3b,Pt6']
+        annotation_order: [Cell State ID, Cell_type, Subtype, Proliferation, Functional, Functional Combination, Number Significant]
+        includeComparisonInTitle: no
+        row_summary: yes ## add column in annotation to indicate how many times a condition passed filters across questions (how many patients?)
+
+    main_questions_cell_types_only:
+        outFile: results/supervised/statistics/figures/q_1b_2a_3a__fractions__CT_ONLY.pdf
+        questions: [1b, 2a, 3a]
+        annotation_columns: [Cell State ID, Cell_type, Subtype]
+        annotation_order: [Cell State ID, Cell_type, Subtype]
+        includeComparisonInTitle: yes
+
+    1b_subtype_only:
+        outFile: results/supervised/statistics/figures/q_1b__Subtype_ONLY.pdf
+        questions: 1b
+        annotation_columns: [Cell State ID, Cell_type, Subtype]
+        annotation_order: [Cell State ID, Cell_type, Subtype]
+        includeComparisonInTitle: no
+
+    3a_subtype_only:
+        outFile: results/supervised/statistics/figures/q_3a__Subtype_ONLY.pdf
+        questions: 3a
+        annotation_columns: [Cell State ID, Cell_type, Subtype]
+        annotation_order: [Cell State ID, Cell_type, Subtype]
+        includeComparisonInTitle: no
+
+    3c_subtype_only:
+        outFile: results/supervised/statistics/figures/q_3c__Subtype_ONLY.pdf
+        questions: 
+            - "3c,Pt0,CR"
+            - "3c,Pt1,CR"
+            - "3c,Pt4,CR1"
+            - "3c,Pt4,CR2"
+            - "3c,Pt4,CR3"
+            - "3c,Pt6,CR1"
+            - "3c,Pt6,CR2"
+            - "3c,Pt0,nonCR"
+            - "3c,Pt1,nonCR"
+            - "3c,Pt2,nonCR1"
+            - "3c,Pt2,nonCR2"
+            - "3c,Pt3,nonCR"
+            - "3c,Pt5,nonCR"
+        annotation_columns: [Cell State ID, Cell_type, Subtype]
+        annotation_order: [Cell State ID, Cell_type, Subtype]
+        includeComparisonInTitle: no
+
+    main_questions_functional_combined:
+        outFile: results/supervised/statistics/figures/q_1b_2a_3a__fractions__functional_combined.pdf
+        questions: [1b, 2a, 3a]
+        annotation_order: [Cell State ID, Cell_type, Subtype, Proliferation, Functional, Functional Combination]
+        includeComparisonInTitle: yes
+        combineAllFunctional: yes
+        cell_type_legend_order: [Subtype, Proliferation]
+        functional_combo_legend_order: [Functional, Marker Positivity, 'T,B,NK', Macro/Mono, Tumor, Not applicable]
+
+    main_questions_functional_collapsed: 
+        outFile: results/supervised/statistics/figures/q_1b_2a_3a__fractions__functional_collapsed.pdf
+        questions: [1b, 2a, 3a]
+        includeComparisonInTitle: yes
+        cell_type_legend_order: [Subtype, Proliferation]
+        functional_combo_legend_order: [Cell State, Marker Positivity, 'T,B,NK', Macro/Mono, Tumor, Not applicable]
+
+    3b_functional_collapsed:
+        outFile: results/supervised/statistics/figures/q_3b__fractions__functional_collapsed.pdf
+        questions: ['3b,Pt0', '3b,Pt1', '3b,Pt2', '3b,Pt3', '3b,Pt4', '3b,Pt5', '3b,Pt6']
+        includeComparisonInTitle: yes
+        cell_type_legend_order: [Subtype, Proliferation]
+        functional_combo_legend_order: [Cell State, Marker Positivity, 'T,B,NK', Macro/Mono, Tumor, Not applicable]
+
+    main_questions_no_annotation:
+        outFile: results/supervised/statistics/figures/q_1b_2a_3a__fractions__NO_ANNOT.pdf
+        questions: [1b, 2a, 3a]
+        annotation_columns: [Cell State ID, Cell_type]
+        includeComparisonInTitle: yes
+        cell_type_legend_order: ~
+        functional_combo_legend_order: ~
+
+    3b_no_annotation:
+        outFile: results/supervised/statistics/figures/q_3b__fractions__NO_ANNOT.pdf
+        questions: ['3b,Pt0', '3b,Pt1', '3b,Pt2', '3b,Pt3', '3b,Pt4', '3b,Pt5', '3b,Pt6']
+        annotation_columns: [Cell State ID, Cell_type]
+        includeComparisonInTitle: yes
+        cell_type_legend_order: ~
+        functional_combo_legend_order: ~
+
+#############################
+##        PLOT DATA        ##
+##
+## save RDA file of all data needed to reproduce the figure
+save_plot_data: no
+### after compiling and saving data, do NOT plot
+plot_data_only: no
+## FDR cut off for determining significance
+maxFDR: 0.05
+## gray out conditions that did not pass filter?
+mute_filter_failures: yes
+## include an extra simple annotation with a gradient showing how many questions had a significant result for each condition
+row_summary: FALSE
+## include condition IDs
+row_numbers: TRUE
+## show every X index number on figure
+index_interval: 50 
+## on detail condition table, replace y-axis text with cell type heatmap
+label_with_heatmap: yes
+#############################
+##         LEGEND          ##
+##
+## * a "sub"-legend will be created for each one of these annotation names;
+##
+## * every name should either match a column in data or must be set up in 
+##   customDetails in the code; 
+## 
+## * right now the following are hard coded in legend creation: LOR, NA, Significance;
+##   all others must be defined somehow (see note above)
+
+data_legend_order: 
+    - LOR (Group 1/Group 2)
+    - Significant
+
+cell_type_legend_order:
+    - Subtype
+    - Proliferation
+    - Functional
+
+functional_combo_legend_order:
+    - Functional Combination
+    - T,B,NK
+    - Macro/Mono
+    - Tumor
+    - Not applicable
+
