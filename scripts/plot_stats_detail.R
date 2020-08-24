@@ -38,41 +38,58 @@ usage <- function(){
     cat("\nUsage:  Rscript calculate_metrics.R 
             
           [REQUIRED (may be defined on command line OR in manifest file)]
+            --band_dir                       path to RDA files, each containing a table of band 
+                                             assignments and band areas for each cell
+            --cell_data_dir                  path to RDA files, each containing a single 
+                                             table where rows are cells and columns are 
+                                             all data for that single cell
             --figure_config_file             YAML file of figure configuration including
                                              facet order & biological filters
-            --plot_color_file                YAML file containing all color assignments 
+            --fov_area_dir                   path to RDA files, each containing table of FOVs and 
+                                             total FOV area for all FOVs in a single sample 
+            --meta_dir                       path to meta files in XLSX format
             --metrics_dir                    root directory of all precalculated metrics
-            --statistics_detail_dir          output directory where figure(s) will be saved
-            --statistics_conditions_file     YAML file containing all 'conditions' or 
-                                             cell states to analyze 
-            --statistics_conditions_index    output XLSX file where indexed conditions
-                                             will be saved
+            --plot_color_file                YAML file containing all color assignments 
+            --statistics_conditions_file     XLSX file listing all cell states/conditions to 
+                                             compare between two sample groups
+            --statistics_conditions_index    XLSX file with pre-indexed cell states/conditions
+            --statistics_questions_file      XLSX file outlining all questions/comparisons for 
+                                             which stats should be run
+            --statistics_tables_dir          output directory where XLSX files of results should 
+                                             be written
+
+          [OPTIONAL]
             --detail_figure_conditions_file  XLSX file containing a column for each question, 
                                              each column containing any number of Cell State IDs
                                              that should be included in the figure
-            --meta_dir                       directory containing meta data XLSX files
-            --statistics_questions_file      XLSX file describing questions by indicating how to
-                                             filter data to form two sample groups for each question
-
-          [OPTIONAL]
-            --question_number         question number of comparison to be plotted
-            --plot_calculation        calculation to be plotted (densities or fractions)
-            --manifest                YAML file containing one or more parameter; NOTE: 
-                                      arguments on command line override manifest arguments!!!         
+            --neighborhood_counts_dir        directory of RDA files containing formatted macrophage 
+                                             neighborhood counts 
+            --neighborhood_dir               directory containing RDA files of all pairwise distances 
+                                             between cells, at least those <= 30 microns. generally 
+                                             each file will contain a table of all 'center' cells of
+                                             a certain type, but this is not a requirement as all files
+                                             will be loaded together; required if question data is restricted
+                                             to tumor or macrophage neighborhoods
+            --question_number                question number of comparison to be plotted
+            --plot_calculation               calculation to be plotted (densities or fractions)
+            --manifest                       YAML file containing one or more parameter; NOTE: 
+                                             arguments on command line override manifest arguments!!!         
+            --tme_by_cell_dir                directory containing RDA files of tumor microenvironment 
+                                             assignments; i.e., each cell (see docs for details); NOTE:
+                                             not required if cell_dive_id specified and sample is NOT a tumor
         \n"
     )
 }
 
 ## names of required args
-minReq <- c("statistics_conditions_file",
-            "figure_config_file",
-            "plot_color_file",
-            "metrics_dir",
-            "meta_dir",
-            "statistics_conditions_index",
-            "statistics_questions_file")
+minReq <- c("band_dir", "cell_data_dir", "figure_config_file",
+            "fov_area_dir", "meta_dir", "metrics_dir", "plot_color_file",
+            "statistics_conditions_file", "statistics_conditions_index",
+            "statistics_questions_file", "statistics_tables_dir") 
 
-used <- names(minReq)
+used <- c(names(minReq), "detail_figure_conditions_file", "neighborhood_counts_dir",
+          "neighborhood_dir", "question_number", "plot_calculation", "manifest",
+          "tme_by_cell_dir")
 defaults <- list()
 
 if(!interactive()){
@@ -89,6 +106,8 @@ if(!interactive()){
 ##   CONFIGURE & INITIALIZE DATA ##
 ###################################
 cfg <- resolveConfig(args, read_yaml(args$plot_color_file), read_yaml(args$figure_config_file))
+
+logParams(cfg, used)
 
 loadGlobalStudyData(cfg, all = T)
 

@@ -35,50 +35,45 @@ usage <- function(){
  cat("\nUsage:  Rscript report_statistics.R 
             
     [REQUIRED (may be defined on command line OR in manifest file)] 
+      --annotation_config_file      YAML file describing how conditions are to be 
+                                    arranged and indexed
+      --band_dir                    path to RDA files, each containing a table of band 
+                                    assignments and band areas for each cell
       --cell_data_dir               path to RDA files, each containing a single 
                                     table where rows are cells and columns are 
                                     all data for that single cell
+      --fov_area_dir                path to RDA files, each containing table of FOVs and 
+                                    total FOV area for all FOVs in a single sample 
       --meta_dir                    path to meta files in XLSX format
       --metrics_dir                 root directory for all area, fractions and 
                                     densities; subdirs will be created for each 
                                     cell region
-      --annotation_config_file      YAML file describing how conditions are to be 
-                                    arranged and indexed
-      --statistics_config_file      YAML file defining configuration for statistics; 
-                                    see docs for details
-      --statistics_questions_file   XLSX file outlining all questions/comparisons for 
-                                    which stats should be run
       --statistics_conditions_file  XLSX file listing all cell states/conditions to 
                                     compare between two sample groups
+      --statistics_conditions_index XLSX file with pre-indexed cell states/conditions
+      --statistics_questions_file   XLSX file outlining all questions/comparisons for 
+                                    which stats should be run
       --statistics_tables_dir       output directory where XLSX files of results should 
                                     be written
-      --fov_area_dir                path to RDA files, each containing table of FOVs and 
-                                    total FOV area for all FOVs in a single sample 
-      --band_dir                    path to RDA files, each containing a table of band 
-                                    assignments and band areas for each cell
 
     [OPTIONAL]
+      --question                a single QuestionNumber from statistics_questions_file to run stats on
       --manifest                YAML file containing one or more parameter; NOTE: arguments 
                                 on command line override manifest arguments!!!         
       --number_threads          number of threads to use for parallel processes
-      --question                a single QuestionNumber from statistics_questions_file to run stats on
   \n"
  )
 
 }
 
 ## names of required args
-minReq <- list("statistics_config_file",
-               "statistics_questions_file",
-               "statistics_tables_dir",
-               "annotation_config_file",
+minReq <- list("annotation_config_file", 
+               "cell_data_dir", "band_dir", "fov_area_dir",
                c("meta_dir","meta_files","meta_data_file"),
-               "cell_data_dir",
-               "fov_area_dir",
-               "band_dir",
-               "metrics_dir")
-
-used <- unique(c(minReq, c("manifest", "question"))) 
+               "metrics_dir",
+               "statistics_questions_file",
+               c("statistics_conditions_file", "statistics_conditions_index"),
+               "statistics_tables_dir")
 
 defaults <- list(question = "all")
 
@@ -88,7 +83,7 @@ if(!interactive()){
     args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
 } else {
     args <- processCMD(list(manifest = "input/config/study_config.yaml",  
-                            statistics_config_file = "input/config/stats_config.yaml"), 
+                            annotation_config_file = "input/config/annotation_config.yaml"), 
                        defaults, minReq, usage)
     args$question <- "7b_nbhd_by_cell"
 }
@@ -97,12 +92,12 @@ if(!interactive()){
 ###   CONFIGURATION & DATA INIT   ###
 #####################################
 
-cfg        <- resolveConfig(args, read_yaml(args$statistics_config_file))
-outDir     <- cfg$statistics_tables_dir
-mkdir(outDir)
+cfg <- resolveConfig(args, read_yaml(args$statistics_config_file))
+
+logParams(cfg, names(cfg)[!names(cfg) %in% c("no-restore", "slave", "args", "file")])
 
 loadGlobalStudyData(cfg, all = T)
-calcUnit <- "FOV_ID"
+
 qToRun <- names(allQuestions)
 if(!is.null(cfg$question)){
     qToRun <- cfg$question
@@ -111,7 +106,8 @@ if(!is.null(cfg$question)){
 ######################################
 ###    FINALLY, ANSWER QUESTIONS   ###
 ######################################
-log_info(paste0("Running stats on ",toupper(calcUnit)," level..."))
+log_info(paste0("Running stats on FOV_ID level..."))
+mkdir(cfg$statistics_tables_dir)
 
 for(q in qToRun){
     log_info(paste0("QUESTION: ",q))
@@ -124,17 +120,17 @@ for(q in qToRun){
     }
 
     qRes <- tryCatch({
-               getQuestionStatistics(allQuestions[[q]], 
-                                     annCells, 
-                                     sampAnn, 
-                                     allAnalyses,
-                                     markers, 
-                                     cfg$metrics_dir, 
-                                     cfg$results_filters[[cfg$use_filter]], 
-                                     filtName = cfg$use_filter,
-                                     calcUnit = calcUnit,
-                                     nbhdCounts = nbhdCounts, 
-                                     tumorNbhdCells = tumorNbhdCells)
+               compareSampleGroups(allQuestions[[q]], 
+                                   annCells, 
+                                   sampAnn, 
+                                   allAnalyses,
+                                   markers, 
+                                   cfg$metrics_dir, 
+                                   cfg$results_filters[[cfg$use_filter]], 
+                                   filtName = cfg$use_filter,
+                                   calcUnit = "FOV_ID",
+                                   nbhdCounts = nbhdCounts, 
+                                   tumorNbhdCells = tumorNbhdCells)
               }, error = function(e){
                   log_error(e)
                   log_error(paste0("Stats failed for question ",q))

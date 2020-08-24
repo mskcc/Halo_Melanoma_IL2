@@ -41,10 +41,7 @@ usage <- function(){
 }
 
 ## names of required args
-minReq <- list("statistics_conditions_file",
-               "annotation_config_file",
-               "statistics_conditions_index")
-used <- names(minReq)
+minReq <- list("statistics_conditions_file", "annotation_config_file", "statistics_conditions_index")
 defaults <- list()
 
 if(!interactive()){
@@ -60,7 +57,7 @@ if(!interactive()){
 ###############################################
 aCfg  <- read_yaml(args$annotation_config_file)
 cfg   <- resolveConfig(aCfg, args)
-logParams(cfg, used)
+logParams(cfg, names(cfg))
 
 conds <- getConditionsIndex(cfg$statistics_conditions_index, 
                             cfg$statistics_conditions_file, 

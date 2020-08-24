@@ -97,6 +97,7 @@ defaults <- list(log_dir = "logs",
                  infiltration_density_config = "~",
                  
                  ### parameters
+                 control_marker = "DAPI",
                  pad = 20,
                  drift_threshold = 0.1,
                  max_g = 5.0,

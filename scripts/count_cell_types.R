@@ -49,12 +49,8 @@ usage <- function(){
 }
 
 ## set up required args & defaults 
-minReq <- list(c("meta_dir","meta_files"),
-               "cell_data_dir",
-               "cell_type_counts_file",
-               "number_threads")
-
-defaults <- list()
+minReq   <- list(c("meta_dir","meta_files"), "cell_data_dir", "cell_type_counts_file")
+defaults <- list(number_threads = 1)
 
 if(!interactive()){
     args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
@@ -68,7 +64,6 @@ if(!interactive()){
     args <- processCMD(args, defaults, minReq, usage) 
 }
 
-checkRequiredInput(args, minReq)
 
 loadGlobalStudyData(args, conditions = FALSE, analyses = FALSE)
 

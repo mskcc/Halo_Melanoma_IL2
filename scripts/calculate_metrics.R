@@ -35,57 +35,69 @@ usage <- function(){
           [REQUIRED (may be defined on command line OR in manifest file)]
             --annotation_config_file      YAML file describing how to arrange and 
                                           index cell annotation
-            --statistics_conditions_file  YAML file containing all 'conditions' or 
-                                          cell states to analyze 
+            --band_dir                    directory containing infiltration band files
             --cell_data_dir               path to RDA files each containing a single 
                                           table where rows are cells and columns are 
                                           all data for that single cell
+            --fov_area_dir                directory containing fov area files 
+            --meta_dir                    path to meta files in XLSX format
             --metrics_dir                 root directory for all area, fractions and 
                                           densities; subdirs will be created for each 
                                           cell region
-            --meta_dir                    path to meta files in XLSX format
-            --focus                       metrics level on which to focus ['fov'|'interface']
-            --fov_area_dir                directory containing fov area files 
-            --band_dir                    directory containing infiltration band files
-
+            --neighborhood_counts_dir     directory of RDA files containing formatted macrophage 
+                                          neighborhood counts 
+            --neighborhood_dir            directory containing RDA files of all pairwise distances 
+                                          between cells, at least those <= 30 microns. generally 
+                                          each file will contain a table of all 'center' cells of
+                                          a certain type, but this is not a requirement as all files
+                                          will be loaded together
+            --statistics_conditions_file  YAML file containing all 'conditions' or 
+                                          cell states to analyze 
+            --statistics_conditions_index XLSX file of pre-indexed conditions
+            --statistics_questions_file   XLSX file describing questions to be answered (see docs)
+            --tme_by_cell_dir             directory containing RDA files of tumor microenvironment 
+                                          assignments; i.e., each cell (see docs for details); NOTE:
+                                          not required if cell_dive_id specified and sample is NOT a tumor
 
           [OPTIONAL]
+            --cell_dive_id            a single cell dive id for which metrics should be calculated
+            --focus                   metrics level on which to focus ['fov'|'interface']
             --manifest                YAML file containing one or more parameter; NOTE: 
                                       arguments on command line override manifest arguments!!!         
             --number_threads          number of threads to use for parallel processes
-            --cell_dive_id            a single cell dive id for which metrics should be calculated
         \n"
     )
 }
 
 ## names of required args
-minReq <- list("statistics_conditions_file",
-               "annotation_config_file",
-               c("meta_dir","meta_files"),
-               "cell_data_dir",
-               "fov_area_dir",
-               "band_dir",
-               "metrics_dir",
-               "tme_by_cell_dir",
-               "neighborhood_dir",
-               "number_threads",
-               "focus")
+minReq <- list("annotation_config_file", c("band_dir","fov_area_dir"), "cell_data_dir",
+               c("meta_dir","meta_files"), "metrics_dir", "neighborhood_dir", 
+               "neighborhood_counts_dir",
+               "statistics_conditions_file", "statistics_conditions_index", 
+               "statistics_questions_file",
+               "tme_by_cell_dir") 
 
-used <- c("metrics_dir","meta_dir","meta_files","cell_data_dir","fov_area_dir",
-          "band_dir", "meta_data_file","number_threads","statistics_conditions_file",
-          "tme_by_cell_dir", "neighborhood_dir",
-          "cell_dive_id", "focus")
-
-defaults <- list(focus = "fov")
+defaults <- list(cell_dive_id = "All", focus = NA, number_threads = 1)
 
 if(!interactive()){
     suppressMessages(library(R.utils))
     args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
 } else {
-    args <- processCMD(list(manifest = "input/config/study_config.yaml",
-                            cell_dive_id = "mel_1", 
-                            focus = "fov"),
-                       defaults, minReq, usage)
+    args <- defaults
+    args$annotation_config_file <- "input/config/annotation_config.yaml"
+    args$band_dir <- "preprocessing/03_infiltration_band_data"
+    args$cell_data_dir <- "preprocessing/03_annotated"
+    args$fov_area_dir <- "processed/metrics/fovs/areas"
+    args$meta_dir <- "input/meta"
+    args$metrics_dir <- "processed/metrics"
+    args$neighborhood_counts_dir <- "preprocessing/04_neighborhoods/macro_nbhd_counts"
+    args$neighborhood_dir <- "preprocessing/04_neighborhoods/all_vs_all"
+    args$statistics_conditions_file <- "input/config/stats_conditions.xlsx"
+    args$statistics_conditions_index <- "results/statistics/conditions_index.xlsx"
+    args$statistics_questions_file <- "input/config/stats_questions.xlsx"
+    args$tme_by_cell_dir <- "preprocessing/05_microenvironments/cell_status"
+    args$cell_dive_id <- "mel_1"
+    args$focus <- "fov"
 }
 
 ###############################################
@@ -93,15 +105,15 @@ if(!interactive()){
 ###############################################
 aCfg  <- read_yaml(args$annotation_config_file)
 cfg   <- resolveConfig(aCfg, args)
-logParams(cfg, used)
+
+logParams(cfg, sort(names(cfg)[!names(cfg) %in% c("no-restore", "slave", "args", "file")]))
 
 cellRegions <- c("fov", "interface", "interface inside", "interface outside", "neighborhood")
-cellDiveID  <- ifelse(is.null(cfg$cell_dive_id), "All", cfg$cell_dive_id)
 
 ###############################################
 ###           INITIALIZE ALL DATA           ###
 ###############################################
-if(cfg$focus == "fov"){
+if(tolower(cfg$focus) == "fov"){
     all <- list(cuFOV = list(CU = "FOV_ID", CR = c("fov")))
 
     loadGlobalStudyData(cfg, 
@@ -110,11 +122,9 @@ if(cfg$focus == "fov"){
                         questions = TRUE,
                         neighborhoodCounts = TRUE,
                         cellsInTumorNeighborhood = FALSE,
-                        tmeSampleStatus = FALSE,
                         tmeCellStatus = FALSE)
-    tumorNbhdCells <<- NULL
 
-} else if(cfg$focus == "interface"){
+} else if(tolower(cfg$focus) == "interface"){
 
     all <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions[-1]),
                 cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
@@ -122,7 +132,15 @@ if(cfg$focus == "fov"){
 
     loadGlobalStudyData(cfg, all = T)
 
-}    
+} else {
+
+    all <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions),
+                cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
+                cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
+
+    loadGlobalStudyData(cfg, all = T)
+
+} 
 
 
 ###############################################

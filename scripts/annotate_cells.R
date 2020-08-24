@@ -25,15 +25,21 @@ usage <- function(){
     cat("\nUsage:  Rscript annotate_cells.R 
             
           [REQUIRED (may be defined on command line OR in manifest file)] 
-            --annotated_cells_file  path to RDA file (output) that will contain a single table where rows are
-                                    cells and columns are all data for that single cell
+            --annotated_cells_file  path to RDA file (output) that will contain a 
+                                    single table where rows are cells and columns 
+                                    are all data for that single cell
+            --control_marker        name of marker used as control; all cells negative for 
+                                    this marker are removed
+            --data_dir              path to processed, exclusion-marked RDA files of 
+                                    formatted halo object data; required if annotated_cells_file 
+                                    does NOT exist and if data_files is NULL 
+            --meta_dir              path to meta files in XLSX format, required IF meta_data_file 
+                                    is NULL
 
           [OPTIONAL]
+            --data_files          full paths to each file to be included in analysis
             --manifest            YAML file containing one or more parameter; NOTE: arguments on command 
                                   line override manifest arguments!!!         
-            --data_dir            path to processed, exclusion-marked RDA files of formatted halo object data 
-            --data_files          full paths to each file to be included in analysis
-            --meta_dir            path to meta files in XLSX format, required IF meta_data_file is NULL
             --meta_files          comma-delimited list of meta files 
             --meta_data_file      RDA file with pre-compiled/flattened meta data, required IF meta_dir &
                                   meta_files are NULL
@@ -42,21 +48,15 @@ usage <- function(){
     )
 }
 
-minReq <- list(c("meta_dir","meta_files","meta_data_file"),
-               c("data_dir","data_files"),
-               "annotated_cells_file",
-               "number_threads")
+minReq   <- list("annotated_cells_file",
+                 "control_marker",
+                 c("data_dir","data_files"),
+                 c("meta_dir","meta_files","meta_data_file"),
+                 "number_threads")
 
-used <- c("annotated_cells_file","data_dir","data_files","meta_dir","meta_files",
-          "number_threads", "overwrite","meta_data_file")
+defaults <- list(number_threads = 4)
 
-defaults <- list('overwrite' = FALSE, 'number_threads' = 4)
-
-if(!interactive()){
-    args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
-} else {
-    args <- processCMD(list(manifest="input/config/study_config.yaml"), defaults, minReq, usage) 
-}
+args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
 
 logParams(args, names(args)[!names(args) %in% c("no-restore", "slave", "args", "file")])
 
@@ -66,10 +66,16 @@ logParams(args, names(args)[!names(args) %in% c("no-restore", "slave", "args", "
 metaFiles <- getFiles(path = args$meta_dir, files = args$meta_files, pattern = ".xlsx")
 dataFiles <- getFiles(path = args$data_dir, files = args$data_files, pattern = ".rda")
 
-annDat <- annotateCells(args$annotated_cells_file, dataFiles = dataFiles, 
-                        metaFiles = metaFiles, metaDataFile = args$meta_data_file, 
-                        numThreads = args$number_threads, filterExclusions = TRUE, 
-                        controlMarker = "DAPI")
+log_info("Annotating cells in file(s): ")
+for(df in dataFiles){ log_info(paste0("  ", df)) }
+
+annDat <- annotateCells(args$annotated_cells_file, 
+                        dataFiles = dataFiles, 
+                        metaFiles = metaFiles, 
+                        metaDataFile = args$meta_data_file, 
+                        numThreads = args$number_threads, 
+                        filterExclusions = TRUE, 
+                        controlMarker = args$control_marker)
 
 log_debug("Annotated:")
 log_debug(paste("    UUIDs:\t", nrow(annDat)))
