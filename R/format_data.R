@@ -582,28 +582,31 @@ getIDmap <- function(allQuestions, qPre = NULL, qNames = NULL){
 }
 
 
-#' Format raw neighborhood counts table for statistical analyses
+#' Format neighborhood counts table for statistical analyses
 #' 
 #' Filter table for cells in region of interest and join center cell annotation
-#' including Sample_ID, Band and PositiveMarkers
+#' including Sample_ID, Band and PositiveMarkers. Fill in table zeros where 
+#' applicable, as raw counts tables include only center cell/neighborhood cell
+#' type pairs that exist (i.e., N.Count >= 1)
 #' 
 #' @param nbhdCountsDir    directory of files each containing table of neighborhood counts 
 #'                         including columns 'C.UUID' and 'FOV'
-#' @param dlDat            annotated cell data for ONLY cells inside region of interest
-#' @param cellDiveID       CellDive_ID for which data should be formatted
+#' @param annCells         annotated cell data for ONLY cells inside region of interest
+#' @param cellDiveID       CellDive_ID for which data should be formatted; default: All
 #' 
 #' @return  filtered & annotated neighborhood counts table
-formatNeighborhoodCounts <- function(nbhdCountsDir, dlDat, cellDiveID = "All"){
+formatNeighborhoodCounts <- function(nbhdCountsDir, annCells, cellDiveID = "All"){
 
     ncFiles <- file.path(nbhdCountsDir, dir(nbhdCountsDir))
     if(tolower(cellDiveID) != "all"){ 
         ncFiles <- ncFiles[grepl(paste0("^", cellDiveID, "_"), basename(ncFiles))] 
+        checkFilesFound(ncFiles, nbhdCountsDir, "neighborhood counts")
     }
 
-    if("Band" %in% names(dlDat)){
-        dlDat <- dlDat %>% select(Band, C.UUID = UUID, C.PositiveMarkers = PositiveMarkers)
+    if("Band" %in% names(annCells)){
+        dat <- annCells %>% select(Band, C.UUID = UUID, C.PositiveMarkers = PositiveMarkers)
     } else {
-        dlDat <- dlDat %>% select(C.UUID = UUID, C.PositiveMarkers = PositiveMarkers)
+        dat <- annCells %>% select(C.UUID = UUID, C.PositiveMarkers = PositiveMarkers)
     }
 
     allNbhdCounts <- tibble()
@@ -617,7 +620,7 @@ formatNeighborhoodCounts <- function(nbhdCountsDir, dlDat, cellDiveID = "All"){
 
         FOV_IDs <- unique(nCts$FOV_ID)
 
-        ## fill in missing neighborhood cell types for 
+        ## fill in missing neighborhood cell types
         nCts <- nCts %>%
                 spread(NeighborhoodCellType, N.Count, fill=0) %>%
                 gather(unique(nCts$NeighborhoodCellType), 
@@ -630,12 +633,15 @@ formatNeighborhoodCounts <- function(nbhdCountsDir, dlDat, cellDiveID = "All"){
                mutate(N.Count = 1) %>%
                spread(FOV_ID, N.Count, fill=0)
 
+        ## make sure all center cell type/neighborhood cell type pairs
+        ## are accounted for in all FOVs
         if(!all(FOV_IDs %in% names(tmp))){
             for(f in FOV_IDs[!FOV_IDs %in% names(tmp)]){
                 tmp[[f]] <- 0
             }
         }
 
+        ## remove redundant rows (those with N.Count != 0)
         tmp <- tmp %>%
                gather(FOV_IDs, key="FOV_ID", value="N.Count") %>%
                filter(N.Count == 0)
@@ -643,7 +649,7 @@ formatNeighborhoodCounts <- function(nbhdCountsDir, dlDat, cellDiveID = "All"){
         allNbhdCounts <- allNbhdCounts %>%
                          bind_rows(nCts %>%
                                    bind_rows(tmp) %>%
-                                   left_join(dlDat, by=c("C.UUID")))
+                                   left_join(dat, by=c("C.UUID")))
 
     }
 

@@ -1,3 +1,597 @@
+#' Set global variable 'cellTypes'
+#'
+#' Read and parse cell types XLSX file and save table in global table
+#' 'cellTypes'. In case of error, catch and print error message, and warn 
+#' that variable is not set.
+#'
+#' @param ctFile   XLSX file containing cell type definitions
+#' 
+#' @return nothing
+setGlobalCellTypes <- function(ctFile){
+    log_info("Setting global variable: 'cellTypes'")
+    cellTypes <<- tryCatch({
+                      getCellTypes(ctFile)
+                    }, error = function(e){
+                      log_error(e)
+                      log_warn("Global variable 'cellTypes' not set.")
+                  })
+}
+
+#' Set cell type definition table
+#'
+#' Read and parse cell types XLSX file and save table in tibble.
+#' In case of error, catch and print error message, and warn that 
+#' variable is not set.
+#'
+#' @param ctFile   XLSX file containing cell type definitions
+#' 
+#' @return nothing
+setCellTypes <- function(ctFile){
+    log_info("Setting cell type definition table...") 
+    tryCatch({
+        getCellTypes(ctFile)
+      }, error = function(e){
+        log_error(e)
+        log_warn("Cell type definition table NOT set.")
+    })
+}
+
+#' Set global variable 'markers'
+#'
+#' Read marker description file and save marker names in global vector 'markers'.
+#' In case of error, catch and print error message, and warn that variable is not set.
+#'
+#' @param mFile   XLSX file containing all marker information, at least Marker_name
+#'
+#' @return nothing 
+setGlobalMarkers <- function(mFile){
+    log_info("Setting global variable: 'markers'")
+    markers <<- tryCatch({
+                    read.xlsx(mFile, 1, check.names = F) %>%
+                    pull(Marker_name)
+                  }, error = function(e){
+                    log_error(e)
+                    log_warn("Global variable 'markers' not set.")
+                })
+}
+
+#' Set vector of all study markers 
+#'
+#' Read marker description file and save marker names in a vector. 
+#' In case of error, catch and print error message, and warn that 
+#' variable is not set.
+#'
+#' @param mFile   XLSX file containing all marker information, at least Marker_name
+#'
+#' @return nothing 
+setMarkers <- function(mFile){
+    log_info("Setting vector of all study markers...") 
+    tryCatch({
+        read.xlsx(mFile, 1, check.names = F) %>%
+        pull(Marker_name)
+      }, error = function(e){
+        log_error(e)
+        log_warn("Vector of study markers NOT set.")
+     })
+}
+
+#' Set global variable 'sampAnn'
+#' 
+#' Read, parse and flatten all sample meta files and save in global 
+#' table 'sampAnn'. If parameter 'id' is provided, filter annotation
+#' on CellDive_ID for given value. In case of error, catch and print error 
+#' message, and warn that variable is not set.
+#'
+#' @param   metaFiles   vector of all sample meta data files
+#' @param   id          CellDive_ID of sample to keep; default = NULL (all samples kept)
+#'
+#' @return
+setGlobalSampleAnnotation <- function(metaFiles, id = NULL){
+    log_info("Setting global variable: 'sampAnn'")
+    sampAnn <<- tryCatch({
+                    sa <- loadStudyAnnotations(metaFiles)$flat %>%
+                          mutate(Sample = FOV_ID) %>%
+                          filter(is.na(FOV_exclusion))
+                    if(!is.null(id) && tolower(id) != "All"){
+                        sa <- sampAnn %>% filter(CellDive_ID == id)
+                    }
+                    sa
+                  }, error = function(e){
+                    log_error(e)
+                    log_warn("Global variable 'sampAnn' not set.")
+                })
+}
+
+#' Set flat table of all sample annotation
+#' 
+#' Read, parse and flatten all sample meta files and save in  
+#' table 'sampAnn'. If parameter 'id' is provided, filter annotation
+#' on CellDive_ID for given value. In case of error, catch and print error 
+#' message, and warn that variable is not set.
+#'
+#' @param   metaFiles   vector of all sample meta data files
+#' @param   id          CellDive_ID of sample to keep; default = NULL (all samples kept)
+#'
+#' @return
+setSampleAnnotation <- function(metaFiles, id = NULL){
+    log_info("Setting flattened table of sample annotation...")
+    tryCatch({
+        sa <- loadStudyAnnotations(metaFiles)$flat %>%
+              mutate(Sample = FOV_ID) %>%
+              filter(is.na(FOV_exclusion))
+        if(!is.null(id) && tolower(id) != "All"){
+             sa <- sampAnn %>% filter(CellDive_ID == id)
+        }
+        sa
+      }, error = function(e){
+        log_error(e)
+        log_warn("Flattened table of sample annotation NOT set.")
+    })
+}
+
+
+#' Set global variable 'allQuestions'
+#'
+#' Read, parse and reformat statistics questions file and save in global
+#' list 'allQuestions'. In case of error, catch and print error 
+#' message, and warn that variable is not set.
+#' 
+#' @param  qFile       XLSX file describing all study questions
+#' @param  question    QuestionNumber to return; default = NULL (all questions)
+#' 
+#' @return nothing
+setGlobalQuestions <- function(qFile, question = NULL){
+    log_info("Setting global variable: 'allQuestions'")
+    allQuestions <<- tryCatch({
+                         qs <- parseStatsQuestions(qFile)
+                         if(!is.null(question)){ qs <- qs[names(qs) == question] }
+                         qs
+                       }, error = function(e){
+                         log_error(e)
+                         log_warn("Global variable 'allQuestions' not set.")
+                     })
+}
+
+
+#' Set list of study questions
+#'
+#' Read, parse and reformat statistics questions. In case of error, 
+#' catch and print error message, and warn that variable is not set.
+#' 
+#' @param  qFile       XLSX file describing all study questions
+#' @param  question    QuestionNumber to return; default = NULL (all questions)
+#' 
+#' @return nothing
+setQuestions <- function(qFile, question = NULL){
+    log_info("Setting list of study questions...")
+    tryCatch({
+        qs <- parseStatsQuestions(qFile)
+        if(!is.null(question) && tolower(question) != 'all'){ qs <- qs[names(qs) == question] }
+        qs
+    }, error = function(e){
+        log_error(e)
+        log_warn("Study questions not set.")
+    })
+}
+
+
+#' Set global variable 'conds'
+#' 
+#' Generate and index or read all previously indexed cell states/conditions
+#' and save in global table 'conds'. In case of error, catch and print error
+#' message and warn that variable is not set.
+#'
+#' @param cFile              XLSX file containing human-generated cell states/conditions
+#' @param cIndex             XLSX file that does or will contain indexed version of cFile
+#' @param arrangeAnnotation  list describing how conditions should be sorted
+#'
+#' @return nothing
+setGlobalConds <- function(cFile, cIndex, arrangeAnnotation){
+    log_info("Setting global variable: 'conds'")
+    conds <<- tryCatch({
+                  getConditionsIndex(cIndex, cFile, arrangeAnnotation)
+                }, error = function(e){
+                  log_error(e)
+                  log_warn("Global variable 'conds' not set.")
+              })
+}
+
+
+#' Set variable 'conds'
+#' 
+#' Generate and index or read all previously indexed cell states/conditions
+#' and save in global table 'conds'. In case of error, catch and print error
+#' message and warn that variable is not set.
+#'
+#' @param cFile              XLSX file containing human-generated cell states/conditions
+#' @param cIndex             XLSX file that does or will contain indexed version of cFile
+#' @param arrangeAnnotation  list describing how conditions should be sorted
+#'
+#' @return nothing
+setConditions <- function(cFile, cIndex, arrangeAnnotation){
+    log_info("Setting table of indexed conditions...")
+    tryCatch({
+        getConditionsIndex(cIndex, cFile, arrangeAnnotation)
+      }, error = function(e){
+        log_error(e)
+      log_warn("Table of indexed conditions NOT set.")
+    })
+}
+
+
+#' Set global variable 'analysisList'
+#'
+#' Divide indexed conditions into list according to calculation type
+#' and save list in global list 'analysisList'. 
+#'
+#' @param cFile   XLSX file containing human-generated cell states/conditions
+#' @param cTbl    table containing all indexed conditions
+#'
+#' @return nothing
+setGlobalAnalyses <- function(cFile, cTbl){
+    log_info("Setting global variable: 'analysisList'")
+    analysisList <<- tryCatch({
+                         getStatsAnalyses(cFile, cTbl)
+                       }, error = function(e){
+                         log_error(e)
+                         log_warn("Global variable 'analysisList' not set.")
+                     })
+}
+
+#' Set variable 'analysisList'
+#'
+#' Divide indexed conditions into list according to calculation type
+#' and save list in global list 'analysisList'. 
+#'
+#' @param cFile   XLSX file containing human-generated cell states/conditions
+#' @param cTbl    table containing all indexed conditions
+#'
+#' @return nothing
+setAnalyses <- function(cFile, cTbl){
+    log_info("Setting list of analyses by calculation type...") 
+    tryCatch({
+        getStatsAnalyses(cFile, cTbl)
+      }, error = function(e){
+        log_error(e)
+        log_warn("List of all analyses NOT set.")
+    })
+}
+
+
+#' Set global variable 'annCells'
+#' 
+#' Load all annotated cells tables and save in global table 'annCells'. 
+#' In case of error, catch and print error message and warn that variable is
+#' not set.
+#' 
+#' @param cellDir     directory containing all annotated cells tables
+#' @param fovAreaDir  directory containing FOV area files
+#' @param bandDir     directory containing all infiltration band assignments and areas 
+#' @param studyAnn    flattened table of all study annotation
+#' @param id          CellDive_ID of sample of interest; default = NULL, all samples
+#'                    loaded
+#'
+#' @return
+setGlobalAnnCells <- function(cellDir, fovAreaDir, bandDir, studyAnn, id = NULL){
+    log_info("Setting global variable: annCells")
+    annCells <<- tryCatch({
+                     loadAnnotatedCells(studyAnn, cellDir,  
+                                        bandDir = bandDir,  
+                                        fovAreaDir = fovAreaDir,  
+                                        cellDiveID = id) 
+                   }, error = function(e){
+                         log_error(e)
+                         log_warn("Global variable 'annCells' not set.")
+                 })
+}
+
+#' Set variable 'annCells'
+#' 
+#' Load all annotated cells tables and save in tibble 'annCells'. 
+#' In case of error, catch and print error message and warn that variable is
+#' not set.
+#' 
+#' @param cellDir     directory containing all annotated cells tables
+#' @param fovAreaDir  directory containing FOV area files
+#' @param bandDir     directory containing all infiltration band assignments and areas 
+#' @param studyAnn    flattened table of all study annotation
+#' @param id          CellDive_ID of sample of interest; default = NULL, all samples
+#'                    loaded
+#'
+#' @return
+setAnnCells <- function(cellDir, fovAreaDir, bandDir, studyAnn, id = NULL){
+    log_info("Setting study annotated cells table...")
+    tryCatch({
+        loadAnnotatedCells(studyAnn, cellDir,
+                           bandDir = bandDir,
+                           fovAreaDir = fovAreaDir,
+                           cellDiveID = id)
+      }, error = function(e){
+        log_error(e)
+        log_warn("Study table of annotated cells not set.")
+    })
+}
+
+
+#' Set global variable 'nbhdCounts'
+#'
+#' Read all macrophage neighborhood files and save counts in global table
+#' 'nbhdCounts'. In case of error, catch and print error message and warn
+#' that variable is not set.
+#'
+#' @param nbhdDir        directory containing subfolders "C2" and "C3", each
+#'                       containing files of cell to cell distances for 
+#'                       cell pairs within 30 microns of each other
+#' @param nbhdCountsDir  directory that already contains or will contain
+#'                       neighborhood cell type counts for each center cell
+#'                       of a specific type (e.g., counts of T cells within
+#'                       30 microns of MHCIIpos_macro cells, per FOV)
+#' @param cells          annotated cells table
+#' @param id             CellDive_ID of sample to keep
+#' @param analyses       list of all analyses
+#' @param studyAnn       flattened table of all study meta data
+#' 
+#' @return nothing
+setGlobalNbhdCounts <- function(nbhdDir = NULL, nbhdCountsDir = NULL, cells = NULL,
+                                id = NULL, analyses = NULL, studyAnn = NULL){
+
+    log_info("Setting global variable: nbhdCounts")
+    nbhdCounts <<- tryCatch({
+                       nbhdDirs <- file.path(nbhdDir, c("C2", "C3"))
+                       ## make sure counts files exist
+                       ncts <- loadMacroNeighborhoodData(nbhdDirs, analyses, nbhdCountsDir, 
+                                                         studyAnn, cellDiveID = id)
+                       formatNeighborhoodCounts(nbhdCountsDir, cells, cellDiveID = id)
+                     }, error = function(e){
+                         log_error(e)
+                         log_warn("Global variable 'nbhdCounts' not set.")
+                   })
+}
+
+
+#' Set variable 'nbhdCounts'
+#'
+#' Read all macrophage neighborhood files and save counts in table
+#' 'nbhdCounts'. In case of error, catch and print error message and warn
+#' that variable is not set.
+#'
+#' @param nbhdDir        directory containing subfolders "C2" and "C3", each
+#'                       containing files of cell to cell distances for 
+#'                       cell pairs within 30 microns of each other
+#' @param nbhdCountsDir  directory that already contains or will contain
+#'                       neighborhood cell type counts for each center cell
+#'                       of a specific type (e.g., counts of T cells within
+#'                       30 microns of MHCIIpos_macro cells, per FOV)
+#' @param cells          annotated cells table
+#' @param id             CellDive_ID of sample to keep
+#' @param analyses       list of all analyses
+#' @param studyAnn       flattened table of all study meta data
+#' 
+#' @return nothing
+setNbhdCounts <- function(nbhdDir = NULL, nbhdCountsDir = NULL, cells = NULL,
+                                id = NULL, analyses = NULL, studyAnn = NULL){
+
+    log_info("Setting table of macrophage neighborhood counts...")
+    tryCatch({
+        nbhdDirs <- file.path(nbhdDir, c("C2", "C3"))
+        ncts <- loadMacroNeighborhoodData(nbhdDirs, analyses, nbhdCountsDir,
+                                          studyAnn, cellDiveID = id)
+        formatNeighborhoodCounts(nbhdCountsDir, cells, cellDiveID = id)
+      }, error = function(e){
+        log_error(e)
+        log_warn("Table of neighborhood counts NOT set.")
+    })
+}
+
+#' Set global variables 'tumorNbhd' and 'tumorNbhdCells'
+#'
+#' Read tumor neighborhood file and save all data in global table 'tumorNbhd'. 
+#' For convenience, save unique list of neighborhood cell UUIDs in global 
+#' vector 'tumorNbhdCells'. In case of error, catch and print error message and warn
+#' that variable is not set.
+#' 
+#' @param nbhdDir    directory containing subfolders "C2" and "C3", each
+#'                   containing files of cell to cell distances for 
+#'                   cell pairs within 30 microns of each other
+#' @param studyAnn   flattened table of all study meta data
+#' @param id         CellDive_ID of sample to keep
+#' @param questions  global questions list, used to determine whether it is 
+#'                   necessary to load tumor neighborhood data
+#'
+#' @return
+setGlobalTumorNeighborhood <- function(nbhdDir, studyAnn, id = NULL, questions = NULL){
+
+    if(!is.null(questions)){
+        if(!any(tolower(unlist(questions)) == "neighborhood")){
+            log_warn("No questions are restricted to tumor neighborhood cell regions. Global variables 'tumorNbhd' and 'tumorNbhdCells' not set.")
+            return()                
+        }
+    }
+
+    log_info("Setting global variables: tumorNbhd and tumorNbhdCells")
+
+    tryCatch({
+
+        nDir  <- file.path(nbhdDir, "C2")
+        tFile <- file.path(nDir, dir(nDir)[grepl("Tumor", dir(nDir))])
+
+        tumorNbhd <<- readRDS(tFile)
+
+        if(!is.null(id)){
+            fovs <- studyAnn %>% pull(FOV_ID) %>% unique()
+            tumorNbhd <<- tumorNbhd %>% filter(FOV %in% fovs)
+        }
+
+        if(nrow(tumorNbhd) > 0){
+            tumorNbhdCells <<- tumorNbhd %>% pull(N.UUID) %>% unique()
+        }
+
+      }, error = function(e){
+        log_error(e)
+        log_warn("Global variables 'tumorNbhd' and 'tumorNbhdCells' not set.")
+    })
+}
+
+
+#' Set study variables 'tumorNbhd' and 'tumorNbhdCells'
+#'
+#' Read tumor neighborhood file and save all data in table 'tumorNbhd'. 
+#' For convenience, save unique list of neighborhood cell UUIDs in  
+#' vector 'tumorNbhdCells'. In case of error, catch and print error 
+#' message and warn that variable is not set.
+#' 
+#' @param nbhdDir    directory containing subfolders "C2" and "C3", each
+#'                   containing files of cell to cell distances for 
+#'                   cell pairs within 30 microns of each other
+#' @param studyAnn   flattened table of all study meta data
+#' @param id         CellDive_ID of sample to keep
+#' @param questions  study questions list, used to determine whether it is 
+#'                   necessary to load tumor neighborhood data
+#'
+#' @return
+setTumorNeighborhood <- function(nbhdDir, studyAnn, id = NULL, questions = NULL){
+
+    if(!is.null(questions)){
+        if(!any(tolower(unlist(questions)) == "neighborhood")){
+            log_warn("No questions are restricted to tumor neighborhood cell regions. Study variables 'tumorNbhd' and 'tumorNbhdCells' not set.")
+            return()
+        }
+    }
+
+    log_info("Setting study variables: tumorNbhd and tumorNbhdCells")
+    tumorNbhd <- NULL
+    tumorNbhdCells <- NULL
+
+    tryCatch({
+
+        nDir  <- file.path(nbhdDir, "C2")
+        tFile <- file.path(nDir, dir(nDir)[grepl("Tumor", dir(nDir))])
+
+        log_info(paste0("Loading cells in tumor neighborhood from file", tFile))
+        tumorNbhd <- readRDS(tFile)
+
+        if(!is.null(id)){
+            fovs <- studyAnn %>% pull(FOV_ID) %>% unique()
+            tumorNbhd <- tumorNbhd %>% filter(FOV %in% fovs)
+        }
+
+        if(nrow(tumorNbhd) > 0){
+            tumorNbhdCells <- tumorNbhd %>% pull(N.UUID) %>% unique()
+        }
+
+        list('tumorNbhd' = tumorNbhd, 'tumorNbhdCells' = tumorNbhdCells)
+
+      }, error = function(e){
+        log_error(e)
+        log_warn("Tumor neighborhood table and vector of cells in tumor neighborhood not set.")
+    })
+}
+
+
+#' Add tumor microenvironment assignments to global annotated cells table
+#' 
+#' Read each TME file, and join to global variable 'annCells'. Depenging on
+#' assignment level specified, prepend level to column name (e.g., cell_MHCI). 
+#' In case of error, catch and print error message and warn that variable 
+#' is not set.
+#'
+#' @param tmeDir           directory containing tumor microenvironment assignment
+#'                         files, each containing one column named 'microEnv.*". 
+#'                         Column in final table will be named according to assignment
+#'                         level and microenvironment (e.g., cell_MHCI)
+#' @param assignmentLevel  'sample' or 'cell', the level at which TME assignments were made
+#' @param questions        global list of questions
+#'
+#' @return nothing
+globalAddTME <- function(tmeDir, assignmentLevel = "sample", questions = NULL){
+
+    if(!is.null(questions)){
+        colPtrn <- paste0(assignmentLevel, "_")
+        if(!any(grepl(colPtrn, names(unlist(questions))))){
+            log_warn("No questions involve TME on ", assignmentLevel, " level. No TME columns added to 'annCells'.")
+            return()
+        }
+    }
+
+    tryCatch({
+
+        log_info(paste0("Adding ", assignmentLevel, " level TME assignments to global variable 'annCells'"))
+
+        files <- file.path(tmeDir, dir(tmeDir))
+
+        for(fl in files){
+            tme <- readRDS(fl)
+            mrkrCol <- names(tme)[grepl("microEnv", names(tme))]
+            mrkr <- gsub("microEnv\\.","",mrkrCol)
+            annCells <<- annCells %>%
+                         left_join(tme %>%
+                                   select_at(c("UUID", mrkrCol)) %>%
+                                   rename_at(vars(mrkrCol),
+                                             list(~(. = paste0(assignmentLevel, "_",mrkr)))),
+                                   by = "UUID")
+        }
+      }, error = function(e){
+        log_error(e)
+        log_warn(paste0("TME assignments on ", assignmentLevel, " level not added to 'annCells'"))
+    })
+
+}
+
+
+#' Add tumor microenvironment assignments to annotated cells table
+#' 
+#' Read each TME file, and join to study variable 'annCells'. Depenging on
+#' assignment level specified, prepend level to column name (e.g., cell_MHCI). 
+#' In case of error, catch and print error message and warn that variable 
+#' is not set.
+#'
+#' @param tmeDir           directory containing tumor microenvironment assignment
+#'                         files, each containing one column named 'microEnv.*". 
+#'                         Column in final table will be named according to assignment
+#'                         level and microenvironment (e.g., cell_MHCI)
+#' @param annCells         tibble of annotated cells to which TME column should be added
+#' @param assignmentLevel  'sample' or 'cell', the level at which TME assignments were made
+#' @param questions        study list of questions
+#'
+#' @return nothing
+addTME <- function(annCells, tmeDir, assignmentLevel = "sample", questions = NULL){
+
+    if(!is.null(questions)){
+        colPtrn <- paste0(assignmentLevel, "_")
+        if(!any(grepl(colPtrn, names(unlist(questions))))){
+            log_warn("No questions involve TME on ", assignmentLevel, " level. No TME columns added to 'annCells'.")
+            return(annCells)
+        }
+    }
+
+    tryCatch({
+
+        log_info(paste0("Adding ", assignmentLevel, " level TME assignments to study variable 'annCells'"))
+
+        files <- file.path(tmeDir, dir(tmeDir))
+
+        for(fl in files){
+            tme <- readRDS(fl)
+            mrkrCol <- names(tme)[grepl("microEnv", names(tme))]
+            mrkr <- gsub("microEnv\\.","",mrkrCol)
+            annCells <- annCells %>%
+                        left_join(tme %>%
+                        select_at(c("UUID", mrkrCol)) %>%
+                        rename_at(vars(mrkrCol),
+                        list(~(. = paste0(assignmentLevel, "_",mrkr)))),
+                      by = "UUID")
+        }
+
+        annCells
+
+      }, error = function(e){
+        log_error(e)
+        log_warn(paste0("TME assignments on ", assignmentLevel, " level not added to 'annCells'"))
+    })
+
+}
+
+
 #' Load global variables containing previously processed/calculated data 
 #'
 #' Given just the study configuration in list form, load into the global namespace
@@ -25,11 +619,19 @@
 #'                                default: FALSE
 #' @param neighborhoodDistances   logical; when TRUE, read neighborhood distances file into variable 
 #'                                'nbhdDistances'; default: FALSE
+#' @param cellsInTumorNeighborhood logical; when TRUE, read tumor neighborhood file; save table in 'tumorNbhd'
+#                                  and save UUIDs of all neighborhood cells in global vector 'tumorNbhdCells'
+#' @param tmeSampleStatus         logical; when TRUE, add to 'annCells' table columns for all categorized tumor
+#'                                microenvironments (e.g., MHCI+/- TME) available in directory referenced by
+#'                                'tme_by_sample_dir' key in config
+#' @param tmeCellStatus           logical; when TRUE, add to 'annCells' table columns for all categorized tumor
+#'                                microenvironments (e.g., MHCI+/- TME) available in directory referenced by
+#'                                'tme_by_cell_dir' key in config
 #'
 #' @return nothing
 loadGlobalStudyData <- function(config,
                                 all = FALSE,
-                                cellTypes = TRUE,
+                                cellTypeDefinitions = TRUE,
                                 markerList = TRUE,
                                 sampleAnnotation = TRUE,
                                 annotatedCells = TRUE,
@@ -40,12 +642,25 @@ loadGlobalStudyData <- function(config,
                                 cellsInTumorNeighborhood = FALSE,
                                 tmeSampleStatus = FALSE,
                                 tmeCellStatus = FALSE){
+
     if(all){
-        cellTypes <- markerList <- analyses <- conditions <- sampleAnnotation <- TRUE
+        cellTypeDefinitions <- markerList <- analyses <- conditions <- sampleAnnotation <- TRUE
         annotatedCells <- questions <- neighborhoodCounts <- cellsInTumorNeighborhood <- TRUE
         #tmeSampleStatus <- TRUE 
         tmeCellStatus <- TRUE
     }
+
+    cellTypes       <<- NULL
+    markers         <<- NULL
+    allQuestions    <<- NULL
+    conds           <<- NULL
+    analysisList    <<- NULL
+    sampAnn         <<- NULL
+    annCells        <<- NULL
+    nbhdCounts      <<- NULL
+    tumorNbhd       <<- NULL
+    tumorNbhdCells  <<- NULL
+    
 
     if(is.null(config$cell_dive_id)){
         config$cell_dive_id <- "All"
@@ -55,127 +670,220 @@ loadGlobalStudyData <- function(config,
         log_threshold(DEBUG)
     }
 
-    if(cellTypes){
-        log_info("Loading global variable: cellTypes")
-        cellTypes <<- getCellTypes(getFiles(path = config$meta_dir, 
-                                            files = config$meta_files, 
-                                            pattern="_CellTypes.xlsx"))
+    if(cellTypeDefinitions){
+        setGlobalCellTypes(getFiles(path = config$meta_dir, 
+                                    files = config$meta_files, 
+                                    pattern = "CellTypes.xlsx"))
     }
 
     if(markerList){
-        log_info("Loading global variable: markers")
-        markers <<- read.xlsx(getFiles(path = config$meta_dir,
-                                       files = config$meta_files,
-                                       pattern="_Markers.xlsx"), 
-                              1, check.names = F) %>%
-                    pull(Marker_name)
+        setGlobalMarkers(getFiles(path = config$meta_dir, 
+                                  files = config$meta_files, 
+                                  pattern = "Markers.xlsx"))
     }
 
     if(questions){
-        log_info("Loading global variable: allQuestions")
-        allQuestions <<- parseStatsQuestions(config$statistics_questions_file)
-        if(!is.null(config$question)){
-            allQuestions <<- allQuestions[names(allQuestions) == config$question]
-        }
+        setGlobalQuestions(config$statistics_questions_file, question = config$question)
     }
 
     if(conditions || analyses){
-        log_info("Loading global variable: conds")
-        conds <<- getConditionsIndex(config$statistics_conditions_index,
-                                     config$statistics_conditions_file,
+        setGlobalConds(config$statistics_conditions_file, 
+                       config$statistics_conditions_index,
+                       config$arrange_annotation)
+    }
+
+    if(analyses){
+        setGlobalAnalyses(config$statistics_conditions_file, conds)
+    }
+
+    if(sampleAnnotation || annotatedCells){
+        metaFiles <- getFiles(path = config$meta_dir, pattern = ".xlsx")
+        setGlobalSampleAnnotation(metaFiles)
+    }
+
+    if(annotatedCells || neighborhoodCounts || tmeSampleStatus || tmeCellStatus){
+        setGlobalAnnCells(config$cell_data_dir, 
+                          config$fov_area_dir, 
+                          config$band_dir, 
+                          sampAnn, 
+                          id = config$cell_dive_id)
+    }
+
+    if(neighborhoodCounts){
+        setGlobalNbhdCounts(nbhdDir = config$neighborhood_dir, 
+                            nbhdCountsDir = config$neighborhood_counts_dir, 
+                            cells = annCells, 
+                            id = config$cell_dive_id, 
+                            analyses = analysisList, 
+                            studyAnn = sampAnn)
+    }
+
+    if(cellsInTumorNeighborhood | tmeSampleStatus | tmeCellStatus){
+        setGlobalTumorNeighborhood(config$neighborhood_dir, sampAnn, 
+                                   id = config$cell_state_id,
+                                   questions = allQuestions)
+    }
+
+    if(tmeSampleStatus){
+        globalAddTME(config$tme_by_sample_dir, 
+                     assignmentLevel = "sample", 
+                     questions = allQuestions)
+    }
+
+    if(tmeCellStatus){
+        globalAddTME(config$tme_by_sample_dir, 
+                     assignmentLevel = "cell", 
+                     questions = allQuestions)
+    }
+}
+
+
+
+
+#' Load all study data 
+#'
+#' Given just the study configuration in list form, load into a list all 
+#' study data including parsed cell types, marker names, condition analysis list, 
+#' sample annotation, annotated cell data, parsed study questions, neighborhood counts
+#' and neighborhood distances. NOTE: this assumes all meta data have been processed,
+#' cells have been annotated and metrics have been calculated prior to running
+#' this function.
+#'
+#' @param config                  study configuration in list form (see docs for details)
+#' @param cellTypes               logical; when TRUE, parse and expand cell types XLSX 
+#'                                file and store in variable 'cellTypes'; default: TRUE
+#' @param markerList              logical; when TRUE, pull Marker_name column from *Markers.xlsx 
+#'                                file and store in variable 'markers'; default: TRUE  
+#' @param analyses                logical; when TRUE, read stats conditions XLSX file into variable
+#'                                'analysisList'; default: TRUE
+#' @param conditions              logical; when TRUE, load conditions index into variable 'conds'; default: TRUE
+#' @param sampleAnnotation        logical; when TRUE, load all sample annotations into variable 'sampAnn';
+#'                                default: TRUE
+#' @param annotatedCells          logical; when TRUE, load annotated cell data into variable 'annCells';
+#'                                default: TRUE
+#' @param questions               logical; when TRUE, parse stats questions XLSX file into list form and 
+#'                                store in variable 'allQuestions'; default=FALSE
+#' @param neighborhoodCounts      logical; when TRUE, read neighborhood counts file into variable 'nbhdCounts';
+#'                                default: FALSE
+#' @param neighborhoodDistances   logical; when TRUE, read neighborhood distances file into variable 
+#'                                'nbhdDistances'; default: FALSE
+#' @param cellsInTumorNeighborhood logical; when TRUE, read tumor neighborhood file; save table in 'tumorNbhd'
+#                                  and save UUIDs of all neighborhood cells in global vector 'tumorNbhdCells'
+#' @param tmeSampleStatus         logical; when TRUE, add to 'annCells' table columns for all categorized tumor
+#'                                microenvironments (e.g., MHCI+/- TME) available in directory referenced by
+#'                                'tme_by_sample_dir' key in config
+#' @param tmeCellStatus           logical; when TRUE, add to 'annCells' table columns for all categorized tumor
+#'                                microenvironments (e.g., MHCI+/- TME) available in directory referenced by
+#'                                'tme_by_cell_dir' key in config
+#'
+#' @return nothing
+loadStudyData <- function(config,
+                          all = FALSE,
+                          cellTypeDefinitions = TRUE,
+                          markerList = TRUE,
+                          sampleAnnotation = TRUE,
+                          annotatedCells = TRUE,
+                          analyses = FALSE,
+                          conditions = FALSE,
+                          questions = FALSE,
+                          neighborhoodCounts = FALSE,
+                          cellsInTumorNeighborhood = FALSE,
+                          tmeSampleStatus = FALSE,
+                          tmeCellStatus = FALSE){
+
+    if(all){
+        cellTypeDefinitions <- markerList <- analyses <- conditions <- sampleAnnotation <- TRUE
+        annotatedCells <- questions <- neighborhoodCounts <- cellsInTumorNeighborhood <- TRUE
+        #tmeSampleStatus <- TRUE 
+        tmeCellStatus <- TRUE
+    }
+
+    stDat <- list()
+
+    if(is.null(config$cell_dive_id)){
+        config$cell_dive_id <- "All"
+    }
+
+    if(!is.null(config$debug) && (config$debug == "yes" || config$debug)){
+        log_threshold(DEBUG)
+    }
+
+    if(cellTypeDefinitions){
+        stDat$cellTypes <- setCellTypes(getFiles(path = config$meta_dir,
+                                        files = config$meta_files,
+                                        pattern = "CellTypes.xlsx"))
+    }
+
+    if(markerList){
+        stDat$markers <- setMarkers(getFiles(path = config$meta_dir,
+                                    files = config$meta_files,
+                                    pattern = "Markers.xlsx"))
+    }
+
+    if(questions){
+        stDat$allQuestions <- setQuestions(config$statistics_questions_file, 
+                                           question = config$question)
+    }
+
+    if(conditions || analyses){
+        stDat$conds <- setConditions(config$statistics_conditions_file,
+                                     config$statistics_conditions_index,
                                      config$arrange_annotation)
     }
 
     if(analyses){
-        log_info("Loading global variable: analysisList")
-        analysisList <<- getStatsAnalyses(config$statistics_conditions_file, conds)
+        stDat$analysisList <- setAnalyses(config$statistics_conditions_file, stDat$conds)
     }
 
-    if(sampleAnnotation || annotatedCells){
-        log_info("Loading global variable: sampAnn")
-        sampAnn <<- loadStudyAnnotations(getFiles(path = config$meta_dir, pattern = ".xlsx"))$flat %>%
-                                         mutate(Sample = FOV_ID) %>%
-                                         filter(is.na(FOV_exclusion))
-        if(!is.null(config$cell_dive_id) && config$cell_dive_id != "All"){
-            sampAnn <<- sampAnn %>% filter(CellDive_ID == config$cell_dive_id)
-        }
+    if(sampleAnnotation || annotatedCells || neighborhoodCounts || tmeCellStatus){
+        metaFiles <- getFiles(path = config$meta_dir, pattern = ".xlsx")
+        stDat$sampAnn <- setSampleAnnotation(metaFiles)
     }
 
     if(annotatedCells || neighborhoodCounts || tmeSampleStatus || tmeCellStatus){
-        log_info("Loading global variable: annCells")
-        annCells <<- loadAnnotatedCells(sampAnn, config$cell_data_dir, 
-                                        bandDir = config$band_dir, 
-                                        fovAreaDir = config$fov_area_dir, 
-                                        cellDiveID = config$cell_dive_id)
+        stDat$annCells <- setAnnCells(config$cell_data_dir,
+                                      config$fov_area_dir,
+                                      config$band_dir,
+                                      stDat$sampAnn,
+                                      id = config$cell_dive_id)
     }
 
     if(neighborhoodCounts){
-        log_info("Loading global variabel: nbhdCounts")
-        neighborhoodDirs <- file.path(config$neighborhood_dir, c("C2","C3"))
-
-        nbhdCounts <<- loadMacroNeighborhoodData(neighborhoodDirs, 
-                                                 analysisList,
-                                                 config$neighborhood_data_dir,
-                                                 sampAnn, 
-                                                 cellDiveID = config$cell_dive_id)
-
-        nbhdCounts <<- formatNeighborhoodCounts(config$neighborhood_data_dir, annCells, cellDiveID = config$cell_dive_id)
+        stDat$nbhdCounts <- setNbhdCounts(nbhdDir = config$neighborhood_dir,
+                                          nbhdCountsDir = config$neighborhood_counts_dir,
+                                          cells = stDat$annCells,
+                                          id = config$cell_dive_id,
+                                          analyses = stDat$analysisList,
+                                          studyAnn = stDat$sampAnn)
     }
 
-    if(cellsInTumorNeighborhood | tmeSampleStatus | tmeCellStatus){
-
-        log_info("Loading global variable: tumorNbhd")
-        nbhdDir <- file.path(config$neighborhood_dir, "C2")
-        tFile   <- file.path(nbhdDir, dir(nbhdDir)[grepl("Tumor", dir(nbhdDir))]) 
-        tumorNbhd <<- readRDS(tFile)
-
-        if(!is.null(config$cell_dive_id)){
-            fovs <- sampAnn %>% pull(FOV_ID) %>% unique()
-            tumorNbhd <<- tumorNbhd %>% filter(FOV %in% fovs)
-        }
-
-        tumorNbhdCells <<- c()
-        if(nrow(tumorNbhd) > 0){
-            log_info("Loading global variable: tumorNbhdCells")
-            tumorNbhdCells <<- tumorNbhd %>% pull(N.UUID) %>% unique()
-        }
+    if(cellsInTumorNeighborhood || tmeSampleStatus || tmeCellStatus){
+        stDat <- c(stDat, 
+                   setTumorNeighborhood(config$neighborhood_dir, 
+                                        stDat$sampAnn,
+                                        id = config$cell_state_id,
+                                        questions = stDat$allQuestions))
     }
 
     if(tmeSampleStatus){
-
-        log_info("Loading TME assignments by sample & adding to global variable: tumorNbhd")
-        files <- file.path(config$tme_by_sample_dir, dir(config$tme_by_sample_dir))
-
-        for(fl in files){
-            tme <- readRDS(fl)
-            mrkrCol <- names(tme)[grepl("microEnv", names(tme))]
-            mrkr <- gsub("microEnv\\.","",mrkrCol)
-            annCells <<- annCells %>%
-                         left_join(tme %>%
-                                   select_at(c("UUID", mrkrCol)) %>%
-                                   rename_at(vars(mrkrCol), list(~(. = paste0("sample_",mrkr)))),
-                                   by = "UUID")
-        }
+        stDat$annCells <- stDat$annCells %>%
+                          addTME(config$tme_by_sample_dir,
+                                 assignmentLevel = "sample",
+                                 questions = stDat$allQuestions)
     }
 
     if(tmeCellStatus){
-
-        log_info("Loading TME assignments by cell & adding to global variable: tumorNbhd")
-        files <- file.path(config$tme_by_cell_dir, dir(config$tme_by_cell_dir))
-
-        for(fl in files){
-            tme <- readRDS(fl)
-            mrkrCol <- names(tme)[grepl("microEnv", names(tme))]
-            mrkr <- gsub("microEnv\\.","",mrkrCol)
-            annCells <<- annCells %>%
-                         left_join(tme %>%
-                                   select_at(c("UUID", mrkrCol)) %>%
-                                   rename_at(vars(mrkrCol), list(~(. = paste0("cell_",mrkr)))),
-                                   by = "UUID")
-        }
+        stDat$annCells <- stDat$annCells %>%
+                          addTME(config$tme_by_cell_dir,
+                                 assignmentLevel = "cell",
+                                 questions = stDat$allQuestions)
     }
 
+    stDat
 }
+
+
+
 
 #' Generate a single tibble from several files
 #' 
@@ -226,17 +934,21 @@ loadAnnotatedCells <- function(sampAnn, annDir, fovAreaDir = NULL, bandDir = NUL
     baFiles <- faFiles <- NULL
 
     annFiles <- file.path(annDir, dir(annDir))
+    checkFilesFound(annFiles, annDir, "annotated cells")
 
     if(!is.null(bandDir)){
         baFiles  <- file.path(bandDir, dir(bandDir))
+        checkFilesFound(baFiles, bandDir, "infiltration band info")
     }
     if(!is.null(fovAreaDir)){
         faFiles  <- file.path(fovAreaDir, dir(fovAreaDir))
+        checkFilesFound(faFiles, fovAreaDir, "FOV area")
     }
 
     if(!is.null(cellDiveID) && tolower(cellDiveID[1]) != "all"){
         cdidPat  <- paste0("^", cellDiveID, "_")
         annFiles <- annFiles[grepl(cdidPat, basename(annFiles))]
+        checkFilesFound(annFiles, annDir, "annotated cells")
     }
 
     dat <- tibble()
@@ -335,6 +1047,7 @@ loadHaloDataFile <- function(file, filterExclusions = FALSE, controlMarker = "DA
         log_warn(paste0(length(ctrlNeg), " ", controlMarker, " negative cells being filtered out."))
         dat <- dat %>% filter(!UUID %in% ctrlNeg)
     }
+
     dat %>% select(CellDive_ID = Sample, FOV_number = SPOT, everything())
 
 }
@@ -362,13 +1075,14 @@ loadAllHaloData <- function(dataDir = NULL, dataFiles = NULL, nThreads = 1,
 
     cl <- makeCluster(nThreads, type = "FORK", outfile = "")
     clusterExport(cl, c('filterExclusions', 'controlMarker'), envir = environment())
+
     allDat <- parLapply(cl, dataFiles, function(df){
                     log_info(paste0("Reading file ",df))
                     loadHaloDataFile(df, 
                                      filterExclusions = filterExclusions, 
                                      controlMarker = controlMarker)
-              })
-    allDat <- bind_rows(allDat)
+              }) %>%
+              bind_rows()
 
     stopCluster(cl)
     return(allDat)
@@ -454,7 +1168,11 @@ loadStudyAnnotations <- function(metaFiles = NULL, metaDataFile = NULL){
     ##
     ### RETURN A LIST OF ALL TABLES
     ##
-    annot <- list(Patients = pts, Samples = samples, FOVs = fovs, flat = flat, IDs = idMap)
+    annot <- list(Patients = pts, 
+                  Samples = samples, 
+                  FOVs = fovs, 
+                  flat = flat, 
+                  IDs = idMap)
 
     return(annot)
 }
@@ -474,34 +1192,38 @@ loadStudyAnnotations <- function(metaFiles = NULL, metaDataFile = NULL){
 #' @return list of indexed and formatted conditions where each element contains
 #'         conditions pertaining to one calculation type
 getStatsAnalyses <- function(condFile, condIdx){ #, cellTypes, funcMarkers, funcCombos){
-    fracConds  <- as_tibble(xlsx::read.xlsx(condFile, sheetName="Fraction", check.names=F))
-    fracConds  <- fracConds %>%
+
+    fracConds  <- xlsx::read.xlsx(condFile, sheetName="Fraction", check.names=F) %>%
+                  as_tibble() %>%
                   left_join(condIdx %>%
                             filterConditionsByAnalysisType("general"),
-                            by=intersect(names(fracConds), names(condIdx)))
+                            by=intersect(names(.), names(condIdx)))
 
-    densConds  <- as_tibble(xlsx::read.xlsx(condFile, sheetName="Density", check.names=F))
-    densConds  <- densConds %>%
+    densConds  <- xlsx::read.xlsx(condFile, sheetName="Density", check.names=F) %>%
+                  as_tibble() %>%
                   left_join(condIdx %>%
                             filterConditionsByAnalysisType("general"),
-                            by=intersect(names(densConds), names(condIdx)))
+                            by=intersect(names(.), names(condIdx)))
 
-    navgcountsConds <- as_tibble(xlsx::read.xlsx(condFile, sheetName="Neighborhood_averagecounts", check.names=F)) %>%
+    navgcountsConds <- xlsx::read.xlsx(condFile, sheetName="Neighborhood_averagecounts", check.names=F) %>%
+                       as_tibble() %>%
                        mutate(`Center Population A` = Center,
                               `Neighborhood Population A` = Neighborhood) %>%
-                       unite("Condition", c("Center Population A", "Neighborhood Population A"), sep="____", remove = FALSE)
-    navgcountsConds <- navgcountsConds %>%
+                       unite("Condition", 
+                             c("Center Population A", "Neighborhood Population A"), 
+                             sep="____", 
+                             remove = FALSE) %>%
                        left_join(condIdx %>%
                                  filterConditionsByAnalysisType("spatial"),
-                                 by = intersect(names(navgcountsConds), names(condIdx)))
+                                 by = intersect(names(.), names(condIdx)))
 
-    nfracsConds     <- as_tibble(xlsx::read.xlsx(condFile, sheetName="Neighborhood_fraction", check.names=F)) %>%
+    nfracsConds     <- xlsx::read.xlsx(condFile, sheetName="Neighborhood_fraction", check.names=F) %>%
+                       as_tibble() %>%
                        mutate(Condition = paste0(`Center Population A`, "____", `Neighborhood Population A`),
-                              Population = paste0(`Center Population B`, "____", `Neighborhood Population B`))
-    nfracsConds     <- nfracsConds %>%
+                              Population = paste0(`Center Population B`, "____", `Neighborhood Population B`)) %>%
                        left_join(condIdx %>%
                                  filterConditionsByAnalysisType("spatial"),
-                                 by = intersect(names(nfracsConds), names(condIdx)))
+                                 by = intersect(names(.), names(condIdx)))
 
     list(fractions  = fracConds,
          densities  = densConds,
@@ -551,17 +1273,16 @@ parseStatsQuestions <- function(questionsXLSXfile){
 #'                       Subtype (C3) center cells
 #' @param nbhdAnalyses   list with two items: 'nfracs' and 'navgcounts' describing all 
 #'                       neighborhood analyses to be run (see docs for format of [StudyName]_Conditions.xlsx)
-#' @param fmtNbhdDirs    directory of pre-compiled neighborhood data files (one per samples)
-##' @param nbhdFile       file of pre-compiled neighborhood data or name of file to which compiled data
-##'                       should be saved
+#' @param nbhdCountsDir  directory of pre-compiled neighborhood data files (one per samples)
 #' @param fovs           character vector of FOV IDs to be included in returned result; default: "all"
+#'
 #' @return complete table of all neighborhood data associated with analyses to be run
-loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, fmtNbhdDirs, sampAnn, cellDiveID = "All"){
+loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, sampAnn, cellDiveID = "All"){
 
     nameMap <- c("MHCIIpos_macro" = "M1",
                  "MHCIIneg_macro" = "M2")
 
-    fmtFiles <- file.path(fmtNbhdDirs, dir(fmtNbhdDirs))
+    fmtFiles <- file.path(nbhdCountsDir, dir(nbhdCountsDir))
     cdids <- sampAnn %>% pull(CellDive_ID) %>% unique
 
     if(tolower(cellDiveID) != "all"){

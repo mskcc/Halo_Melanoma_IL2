@@ -37,12 +37,13 @@ usage <- function(){
                                       and columns are all data for that single 
                                       cell (one file per sample)
             --cell_type_counts_file   path to output file - XLSX file to contain counts summaries
+            --meta_dir                path to meta files in XLSX format, required IF 
+                                      meta_data_file is NULL
 
           [OPTIONAL]
             --manifest            YAML file containing one or more parameter; NOTE: arguments on command
                                   line override manifest arguments!!!
-            --meta_dir            path to meta files in XLSX format, required IF meta_data_file is NULL
-            --meta_files          comma-delimited list of meta files
+            --meta_files          comma-delimited list of meta files; can be supplied instead of meta_dir
             --number_threads      number of threads to use for parallel processes
         \n"
     )
@@ -64,7 +65,7 @@ if(!interactive()){
     args <- processCMD(args, defaults, minReq, usage) 
 }
 
-
+logParams(args, names(args))
 loadGlobalStudyData(args, conditions = FALSE, analyses = FALSE)
 
 countSumms <- getCountSummaries(annCells, cellTypes, xlsxFile=args$cell_type_counts_file) 

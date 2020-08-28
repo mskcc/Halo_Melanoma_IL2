@@ -72,65 +72,56 @@ minReq <- list("annotation_config_file",
                c("meta_dir","meta_files","meta_data_file"),
                "metrics_dir",
                "statistics_questions_file",
-               c("statistics_conditions_file", "statistics_conditions_index"),
+               "statistics_conditions_file", 
+               "statistics_conditions_index",
                "statistics_tables_dir")
 
-defaults <- list(question = "all")
+defaults <- list(number_threads = 1)
 
-if(!interactive()){
-    suppressMessages(library(R.utils))
-    ## this allows ANY parameter set in config to be overwritten here
-    args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
-} else {
-    args <- processCMD(list(manifest = "input/config/study_config.yaml",  
-                            annotation_config_file = "input/config/annotation_config.yaml"), 
-                       defaults, minReq, usage)
-    args$question <- "7b_nbhd_by_cell"
-}
+used <- c(unlist(minReq), "question", "manifest", "number_threads")
+
+args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
 
 #####################################
 ###   CONFIGURATION & DATA INIT   ###
 #####################################
 
-cfg <- resolveConfig(args, read_yaml(args$statistics_config_file))
+cfg <- resolveConfig(args, 
+                     read_yaml(args$annotation_config), 
+                     read_yaml(args$statistics_config_file))
+logParams(cfg, used) 
 
-logParams(cfg, names(cfg)[!names(cfg) %in% c("no-restore", "slave", "args", "file")])
+stDat <- loadStudyData(cfg, all = T)
 
-loadGlobalStudyData(cfg, all = T)
-
-qToRun <- names(allQuestions)
-if(!is.null(cfg$question)){
-    qToRun <- cfg$question
-}
+mkdir(cfg$statistics_tables_dir)
 
 ######################################
 ###    FINALLY, ANSWER QUESTIONS   ###
 ######################################
 log_info(paste0("Running stats on FOV_ID level..."))
-mkdir(cfg$statistics_tables_dir)
 
-for(q in qToRun){
+for(q in names(stDat$allQuestions)){
     log_info(paste0("QUESTION: ",q))
 
-    allAnalyses <- analysisList
+    allAnalyses <- stDat$analysisList
 
     ## for tumor neighborhood analyses, only run fractions analysis 
-    if(any(tolower(unlist(allQuestions[[q]])) == "neighborhood")){ 
+    if(any(tolower(unlist(stDat$allQuestions[[q]])) == "neighborhood")){ 
         allAnalyses <- allAnalyses[names(allAnalyses) == "fractions"] 
     }
 
     qRes <- tryCatch({
-               compareSampleGroups(allQuestions[[q]], 
-                                   annCells, 
-                                   sampAnn, 
+               compareSampleGroups(stDat$allQuestions[[q]], 
+                                   stDat$annCells, 
+                                   stDat$sampAnn, 
                                    allAnalyses,
-                                   markers, 
+                                   stDat$markers, 
                                    cfg$metrics_dir, 
                                    cfg$results_filters[[cfg$use_filter]], 
                                    filtName = cfg$use_filter,
                                    calcUnit = "FOV_ID",
-                                   nbhdCounts = nbhdCounts, 
-                                   tumorNbhdCells = tumorNbhdCells)
+                                   nbhdCounts = stDat$nbhdCounts, 
+                                   tumorNbhdCells = stDat$tumorNbhdCells)
               }, error = function(e){
                   log_error(e)
                   log_error(paste0("Stats failed for question ",q))

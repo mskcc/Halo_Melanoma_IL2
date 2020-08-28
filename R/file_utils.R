@@ -116,3 +116,28 @@ needToWrite <- function(lst, key){
 mkdir <- function(path){
     dir.create(path, recursive = T, showWarnings = F)
 }
+
+
+#' Make sure a vector of files is not empty
+#'
+#' Given a vector of files, throw an error if vector is empty
+#' or if any one of the files does not exist
+#' 
+#' @param files  vector of files to check
+#' @param path   directory containing files of interest
+#' @param desc   a character string describing the expected file type
+#'               (for logging purposes, can be anything)
+#' 
+#' @return nothing 
+checkFilesFound <- function(files, path, desc){
+    if(is.null(files) || length(files) == 0){
+        msg <- paste("No", desc, "files found in directory:", path)
+        log_error(msg)
+        stop(msg)
+    } else if(!all(file.exists(files))){
+        msg <- paste("One or more file does not exist: ", 
+                     paste(files[which(!file.exists(files))], collapse = ", "))
+        log_error(msg)
+        stop(msg)
+    }
+}

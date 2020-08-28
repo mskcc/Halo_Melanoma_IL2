@@ -100,7 +100,7 @@ filterForComparisonGroup <- function(dat, group, tumorNbhdCells = NULL){
             grp <- grp %>%
                    filter_at(vars(filt), all_vars(. %in% group[[filt]]))
         } else {
-            warn(paste0("Can not filter on column that does not exist: ",filt,"...skipping."))
+            warning(paste0("Can not filter on column that does not exist: ",filt,"...skipping."))
         }
     }
     grp

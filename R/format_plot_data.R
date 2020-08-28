@@ -286,7 +286,7 @@ formatStatsForPlottingEffects <- function(statsFile, sheet, calcType, dataCol, a
                                           facetY = NULL, facetOrder = NULL, cellTypes = NULL,
                                           popOrder = NULL, orderBy = NULL, idOrder = NULL){
 
-    cnds <- setConditionOrder(conds, ids, cellTypes, orderBy = orderBy,
+    cnds <- setConditionOrder(allConds, ids, cellTypes, orderBy = orderBy,
                               statsFile = statsFile, sheet = sheet, idOrder = idOrder,
                               facetY = facetY, facetOrder = facetOrder)
 
@@ -303,7 +303,7 @@ formatStatsForPlottingEffects <- function(statsFile, sheet, calcType, dataCol, a
 
     names(stats) <- gsub(paste0("^",dataCol," "),"",names(stats))
 
-    if(nrow(stats) <= 1){
+    if(nrow(stats) < 1){
         log_warn("    WARNING: no statistics available for this question.")
         return(NULL)
     }
@@ -376,6 +376,7 @@ formatFOVdataForPlottingDetail <- function(question, sGrps, dat, condsToPlot, al
                summarize(Count = n()) %>%
                mutate(GroupLabel = paste0(!!as.name(question$groupVar), " (FOVs=", Count, ")")) %>%
                select(-Count)
+
     grpLbls$GroupLabel <- factor(grpLbls$GroupLabel, levels = unique(grpLbls$GroupLabel))
 
     fovDat <- fovDat %>%

@@ -119,7 +119,7 @@ getStatsDetailData <- function(statsFile, sampAnn, annCells, question, conds,
                                              facetY = facets, facetOrder = facetOrder,
                                              popOrder = popOrder, orderBy = orderBy,
                                              statsFile = statsFile, sheet = sheetName)
-
+print("finished")
     list(labels = labs, stats = stats, fovVals = fovDat) 
 }
 

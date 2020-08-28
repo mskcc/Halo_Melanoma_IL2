@@ -936,6 +936,10 @@ logStatsQC <- function(qRes, allAnalyses, samples, calcUnit = "FOV_ID"){
 
         if(tab %in% names(resTabs2origTabs)){
             for(origTab in resTabs2origTabs[[tab]]){
+                if(!origTab %in% names(allAnalyses)){
+                    tabQC <- tabQC %>% bind_rows(tibble(Sheet = origTab))
+                    next
+                }
                 allConds <- allAnalyses[[origTab]]
                 ## check that number of rows in results matches up with rows in 
                 ## conditions input sheet
@@ -1113,9 +1117,9 @@ tmeStatistics <- function(tmeFile, analysisList, nbhdAssignmentFile, assignmentL
 #'                       NULL if allAnalyses does not contain any spatial analyses
 #' @param tumorNbhdCells vector of UUIDs for cells that are inside the neighborhood of at least one 
 #'                       tumor cell 
-getQuestionStatistics <- function(question, dat, sampAnn, allAnalyses, markers, metricsDir, 
-                                  filtList, filtName = "filtered", calcUnit = "FOV_ID", 
-                                  nbhdCounts = NULL, tumorNbhdCells = NULL){
+compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, metricsDir, 
+                                filtList, filtName = "filtered", calcUnit = "FOV_ID", 
+                                nbhdCounts = NULL, tumorNbhdCells = NULL){
 
     toRename <- c("CI.low", "CI.high", "p.value", "adjusted p.value") ## results columns to be renamed
 
@@ -1189,7 +1193,7 @@ getQuestionStatistics <- function(question, dat, sampAnn, allAnalyses, markers, 
     ###
     ### Neighborhood Average Counts
     ###
-    if("navgcounts" %in% names(analysisList) && resGood(qDat, "navgcounts")){
+    if("navgcounts" %in% names(allAnalyses) && resGood(qDat, "navgcounts")){
         log_info("Running neighborhood average count stats")
         navgs     <- reportAverageCountsStats(qDat$navgcounts %>% 
                                               select_at(c("Cell State ID","CenterCellType", "NeighborhoodCellType",
@@ -1206,26 +1210,37 @@ getQuestionStatistics <- function(question, dat, sampAnn, allAnalyses, markers, 
     ###
     ### Combine full fraction and density results into one 'mega sheet'
     ###
-    if(!is.null(qRes$fractions_complete) && !is.null(qRes$densities_complete)){
+    allFracDen <- NULL
+    if(!is.null(qRes$fractions_complete)){ 
         idxs <- which(names(lo) %in% toRename)
         lo2 <- lo
         names(lo2)[idxs] <- paste("Fraction", names(lo2)[idxs])
-
+        allFracDen <- lo2 %>% 
+                      select(`Fraction Passed`, 
+                             `Cell State ID`, 
+                             `Cell State`, 
+                             Population, 
+                             everything()) %>%
+                      arrange(as.numeric(`Cell State ID`))
+        qRes$fractions_complete <- NULL
+    }
+    if(!is.null(qRes$densities_complete)){
         idxs <- which(names(den) %in% toRename)
         den2 <- den
         names(den2)[idxs] <- paste("Density", names(den2)[idxs])
-
-        allFracDen <- lo2 %>%
-                      full_join(den2, by = intersect(names(lo2), names(den2))) %>%
-                      select(`Fraction Passed`, `Density Passed`,
-                             `Cell State ID`, `Cell State`, Population,
+    
+        allFracDen <- allFracDen %>%
+                      full_join(den2, by = intersect(names(lo2), names(den2))) 
+                      select(`Fraction Passed`, 
+                             `Density Passed`,
+                             `Cell State ID`, 
+                             `Cell State`, 
+                              Population,
                               everything()) %>%
                       arrange(as.numeric(`Cell State ID`))
-
-        qRes$all_fractions_and_densities <- allFracDen
-        qRes$fractions_complete <- NULL
         qRes$densities_complete <- NULL
-    } 
+    }
+    qRes$all_fractions_and_densities <- allFracDen
 
     log_info("compiling final report")
 

@@ -136,6 +136,35 @@ calculateAreaTotalFOV <- function(fovDat, boundaries, maxG=5){
 
 }
 
+#' Calculate all FOV areas for a single sample
+#'
+#' Given a complete table of all cell coordinates for a single 
+#' sample, represented by a CellDive_ID, and all exclusion
+#' boundary coordinates, calculate the total tissue area
+#' for each FOV
+#' 
+#' @param cdid        CellDive_ID of sample for which FOV areas will
+#'                    be calculated
+#' @param dataFile    RDA file containing all sample cell coordinates
+#' @param boundaries  nested list of boundary coordinates including
+#'                    all exclusion boundaries
+#' @param maxG
+#' 
+#' @return tibble with one row per FOV and FOVArea for each
+getFOVAreas <- function(cdid, dataFile, boundaries, maxG = 5){ 
+    sdat <- loadHaloDataFile(dataFile, filterExclusions = TRUE)
+    areas <- tibble()
+    for(fov in unique(sdat %>% filter(CellDive_ID == cdid) %>% pull(FOV_number))){
+        fdat <- sdat %>% filter(FOV_number == fov)
+        fbounds <- boundaries[[cdid]][[as.character(fov)]]    
+        areas <- areas %>% bind_rows(tibble(CellDive_ID = cdid,    
+                                            FOV_number = fov,
+                                            FOVArea = calculateAreaTotalFOV(fdat, fbounds, maxG=maxG)))
+    }
+    return(areas)
+}
+
+
 #' Compute band areas for each interface bin
 #' 
 #' Given a list of distances from a tumor boundary, or 'interface bins', calculate area
