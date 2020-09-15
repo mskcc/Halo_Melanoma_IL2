@@ -517,9 +517,9 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
     }
 
     ## add labels one facet at a time to prevent them from being added to all facets
-    facets <- tmp %>% select_at(c(facetY,"Tag")) %>% unique() %>% filter(Tag != "")
+    facets <- tmp %>% select(all_of(facetY)) %>% unique() %>% filter(Tag != "")
     for(i in 1:nrow(facets)){
-        fct <- facets[i,] %>% left_join(tmp, by = c(facetY,"Tag"))
+        fct <- facets[i,] %>% left_join(tmp, by = facetY)
         for(rw in 1:nrow(fct)){
             row <- lapply(as.list(fct[rw,]), function(x) as.vector(x))
             lbls <- lbls +
@@ -546,7 +546,10 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
                       axis.ticks.x.top = element_blank(),
                       plot.margin = margin(r = -0.4, t = 0.5, b = 0.5, l = 0.5, "cm"))
     }
-    if(hideXaxisBottom){ lbls <- lbls + theme(axis.text.x.bottom = element_blank(), axis.ticks.x.bottom = element_blank()) }
+    if(hideXaxisBottom){ 
+        lbls <- lbls + 
+                theme(axis.text.x.bottom = element_blank(), 
+                      axis.ticks.x.bottom = element_blank()) }
  
     condTbl <- ggplot_gtable(ggplot_build(lbls))
     for(i in which(grepl("strip-l", condTbl$layout$name))){
@@ -1235,15 +1238,16 @@ conditionsAligned <- function(labs, stats, indiv, meds = NULL, points = NULL){
 }
 
 
-plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet, comps, calcType, cellTypes, conds, 
-                                           idMap, effectCol = "Odds Ratio", effectAbb = "OR", calcCol = "Fraction", 
-                                           facetY = NULL, facetOrder = NULL, popOrder = NULL, orderBy = NULL){
+plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet, comps, calcType, cellTypes, conds,
+                                           idMap, effectCol = "Odds Ratio", effectAbb = "OR", calcCol = "Fraction",
+                                           facetY = NULL, facetOrder = NULL, popOrder = NULL, orderBy = NULL,
+                                           xVar = "Sample_ID", xOrder = NULL){
 
     idOrder <- NULL
     figs <- list()
     pdfHeight <- 0
     rel_heights <- c()
-    widths <- list(fractions = c(2, 0.4, 0.8, 1.2), 
+    widths <- list(fractions = c(2, 0.4, 0.8, 1.2),
                    densities = c(1.6, 0.4, 0.8, 1.2))
 
     comp1 <- comps$comp1$name
@@ -1251,13 +1255,13 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
 
     ## create two separate plots for conditions that are up/up or down/down and opposite directions
     for(type in c("same", "opposite")){
-        log_debug(paste("Comparison Type: comparison 1 and comparison 2 are in", toupper(type), "direction"))
+        log_debug(paste("Comparison Type: comparison 1 and comparison 2 in", toupper(type), "direction"))
 
-        excl <- dat %>% 
+        excl <- dat %>%
                 filter(!!as.name(paste(comp1, "Overall", effectAbb)) == 1 |
                        !!as.name(paste(comp2, "Overall", effectAbb)) == 1)
-        log_debug(paste("        [FILTER] removed conditions where at least one effect == 1:", numConds(excl)))  
-        
+        log_debug(paste("        [FILTER] removed conditions where at least one effect == 1:", numConds(excl)))
+
         if(type == "same"){
             c2p <- dat %>%
                    filter((!!as.name(paste(comp1, "Overall", effectAbb)) > 1 &
@@ -1266,7 +1270,7 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                              !!as.name(paste(comp2, "Overall", effectAbb)) < 1))  %>%
                    pull(`Cell State ID`)
             log_debug(paste("        [PLOT] conditions with", effectAbb, ">1 in both",
-                                     comp1, "and", comp2, ":", length(c2p))) 
+                                     comp1, "and", comp2, ":", length(c2p)))
 
         } else {
             c2p <- dat %>%
@@ -1275,8 +1279,8 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                           (!!as.name(paste(comp1, "Overall", effectAbb)) < 1 &
                            !!as.name(paste(comp2, "Overall", effectAbb)) > 1)) %>%
                    pull(`Cell State ID`)
-            log_debug(paste("        [PLOT] conditions with", effectAbb, 
-                                     "<1 in one comparison and >1 in the other:", length(c2p))) 
+            log_debug(paste("        [PLOT] conditions with", effectAbb,
+                                     "<1 in one comparison and >1 in the other:", length(c2p)))
         }
 
         ### CONDITION LABELLING
@@ -1285,21 +1289,22 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         statsFile <- statsFiles[grepl(paste0(comps$comp1$question_number, ".xlsx"), statsFiles)]
 
         labs   <- formatConditionsForPlotting(conds, c2p, calcType, cellTypes, facetY = facetY, idOrder = idOrder,
-                                              facetOrder = facetOrder, popOrder = popOrder, orderBy = orderBy, 
+                                              facetOrder = facetOrder, popOrder = popOrder, orderBy = orderBy,
                                               statsFile = statsFile, sheet = sheet)
-        idOrder <- labs %>% 
-                   filter(Column == "Cell State ID") %>% 
-                   select(Value, labelY) %>% 
-                   pull(Value) %>% 
-                   as.numeric() %>% rev()
-        
+        idOrder <- labs %>%
+                   filter(Column == "Cell State ID") %>%
+                   select(Value, labelY) %>%
+                   pull(Value) %>%
+                   as.numeric %>% rev %>% unique
+
         ## get effect sizes & CIs for both overall comparsions
         allStats <- tibble()
         for(cmp in names(comps)){
             qu <- comps[[cmp]]$question_number
             statsFile <- statsFiles[grepl(paste0(qu,".xlsx"), statsFiles)]
-            stats <- formatStatsForPlottingEffects(statsFile, sheet, calcType, calcCol, conds, c2p, cellTypes = cellTypes,
-                                                   facetY = facetY, idOrder = idOrder, facetOrder = facetOrder,
+            stats <- formatStatsForPlottingEffects(statsFile, sheet, calcType, calcCol, conds, c2p,
+                                                   cellTypes = cellTypes, idOrder = idOrder,
+                                                   facetY = facetY, facetOrder = facetOrder,
                                                    popOrder = popOrder, orderBy = orderBy) %>%
                      mutate(CompGroup = comps[[cmp]]$name)
             allStats <- allStats %>% bind_rows(stats)
@@ -1317,7 +1322,7 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         ## compared to the overall comparison
         indivDatT <- indivDat %>%
                      filter(`Cell State ID` %in% c2p) %>%
-                     formatIndivDatForPlotting(idMap, layout, xLabel = "Sample_ID")
+                     formatIndivDatForPlotting(idMap, layout, xVar = xVar, xOrder = xOrder)
 
         if(!conditionsAligned(labs, allStats, indivDatT, meds = allMeds)){
             stop()
@@ -1328,11 +1333,10 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         names(clrs) <- c(comps$comp1$name, comps$comp2$name, 'not significant')
 
         medClrs <- c("#32cd32", "#525253", "#f5d000")
-        names(medClrs) <- c(comps$comp1$group_1_label, 
-                            comps$comp1$group_2_label, 
+        names(medClrs) <- c(comps$comp1$group_1_label,
+                            comps$comp1$group_2_label,
                             comps$comp2$group_1_label)
-
-        log_info("Generating figure...")
+       log_info("Generating figure...")
 
         strpBG  <- TRUE
         bg <- "white"
@@ -1340,9 +1344,9 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         spacer <- "#e0e0e0"
         fs <- 12
 
-        plotParams <- list("same" = list(hideXtitle = FALSE, hideXaxisTop = FALSE, 
+        plotParams <- list("same" = list(hideXtitle = FALSE, hideXaxisTop = FALSE,
                                          hideXaxisBottom = TRUE, keepLegend = TRUE),
-                           "opposite" = list(hideXtitle = TRUE, hideXaxisTop = TRUE, 
+                           "opposite" = list(hideXtitle = TRUE, hideXaxisTop = TRUE,
                                              hideXaxisBottom = FALSE, keepLegend = FALSE))
         pp <- plotParams[[type]]
 
@@ -1355,18 +1359,18 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         ## panel 2
         title = ifelse(calcType == "fractions", "Median Fraction Scaled", "Median Density Scaled")
         medians <- plotMedianBars(allMeds, medClrs, fillCol = "Group", xVar = "x", yVar = "y",
-                                  title = title, facetY = facetY, fontsize = fs, stripeBG = strpBG, 
-                                  bgColor = bg, stripeColor = stripe, spacerColor = spacer, 
+                                  title = title, facetY = facetY, fontsize = fs, stripeBG = strpBG,
+                                  bgColor = bg, stripeColor = stripe, spacerColor = spacer,
                                   keepLegend = pp$keepLegend, hideXtitle = pp$hideXtitle,
                                   hideXaxisTop = pp$hideXaxisTop, hideXaxisBottom = pp$hideXaxisBottom)
         ## panel 3
         allStats$CompGroup <- factor(allStats$CompGroup, levels = names(clrs))
         statPlot  <- plotEffectSize(allStats, clrs = clrs, colorBy = "CompGroup", fontsize = fs,
                                     effectCol = effectCol, facetY = facetY, yVar = "y",
-                                    stripeBG = strpBG, bgColor = bg, stripeColor = stripe, spacerColor = spacer, 
-                                    hideXtitle = pp$hideXtitle, hideXaxisTop = pp$hideXaxisTop, 
-                                    hideXaxisBottom = pp$hideXaxisBottom, keepLegend = pp$keepLegend)
-
+                                    stripeBG = strpBG, bgColor = bg,
+                                    stripeColor = stripe, spacerColor = spacer, hideXtitle = pp$hideXtitle,
+                                    hideXaxisTop = pp$hideXaxisTop, hideXaxisBottom = pp$hideXaxisBottom,
+                                    keepLegend = pp$keepLegend)
         ## panel 4
         ptPlot    <- plotComparisonHeatmap(indivDatT, "Sample_ID", yVar = "y", facetY = facetY,
                                            spacerColor = spacer, fill = "status", calcType = calcType,
@@ -1379,7 +1383,7 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         statAndPtList   <- matchPanelHeights(condAndStatList[[1]], ptPlot)
 
         plotList <- list(condAndStatList[[1]], condAndMedsList[[2]], condAndStatList[[2]], statAndPtList[[2]])
-        rel_widths <- widths[[calcType]] 
+        rel_widths <- widths[[calcType]]
 
         pg <- plot_grid(plotlist = plotList, align = 'hv', axis = 'bt', nrow = 1, rel_widths = rel_widths)
         figs[[type]] <- pg
@@ -1389,9 +1393,8 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         log_debug(paste0("Relative heights: ", paste(rel_heights, collapse = ", ")))
         log_debug(paste0("PDF height: ", pdfHeight))
     }
-
     ### Plotting all passing data
-    pdfFile <- file.path(outDir, paste(comps$comp1$question_number, comps$comp2$question_number, 
+    pdfFile <- file.path(outDir, paste(comps$comp1$question_number, comps$comp2$question_number,
                                        ct, "combined_detail_figure.pdf", sep="_"))
     pdfWidth <- 11.5
 
@@ -1399,7 +1402,7 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
     pg2 <- plot_grid(plotlist = figs, align = 'hv', axis = 'lr', ncol = 1, rel_heights = rel_heights)
     grid.draw(pg2)
     dev.off()
-    options(warn = 0)
+    #options(warn = 0)
 }
-    
+ 
 

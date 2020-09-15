@@ -117,3 +117,11 @@ matchPanelHeights <- function(g1, g2){
 
     return(list(g1,g2))
 }
+
+getPlotColors <- function(plotColors = NULL, plotConfig = NULL){
+    if(is.null(plotColors)){
+        return(read_yaml(cfg$plot_config_file)$plot_colors)
+    }
+    plotColors
+}
+

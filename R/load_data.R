@@ -90,7 +90,6 @@ setGlobalSampleAnnotation <- function(metaFiles, id = NULL){
     log_info("Setting global variable: 'sampAnn'")
     sampAnn <<- tryCatch({
                     sa <- loadStudyAnnotations(metaFiles)$flat %>%
-                          mutate(Sample = FOV_ID) %>%
                           filter(is.na(FOV_exclusion))
                     if(!is.null(id) && tolower(id) != "All"){
                         sa <- sampAnn %>% filter(CellDive_ID == id)
@@ -117,7 +116,6 @@ setSampleAnnotation <- function(metaFiles, id = NULL){
     log_info("Setting flattened table of sample annotation...")
     tryCatch({
         sa <- loadStudyAnnotations(metaFiles)$flat %>%
-              mutate(Sample = FOV_ID) %>%
               filter(is.na(FOV_exclusion))
         if(!is.null(id) && tolower(id) != "All"){
              sa <- sampAnn %>% filter(CellDive_ID == id)
@@ -525,8 +523,8 @@ globalAddTME <- function(tmeDir, assignmentLevel = "sample", questions = NULL){
             mrkr <- gsub("microEnv\\.","",mrkrCol)
             annCells <<- annCells %>%
                          left_join(tme %>%
-                                   select_at(c("UUID", mrkrCol)) %>%
-                                   rename_at(vars(mrkrCol),
+                                   select_at(c("UUID", all_of(mrkrCol))) %>%
+                                   rename_at(all_of(mrkrCol),
                                              list(~(. = paste0(assignmentLevel, "_",mrkr)))),
                                    by = "UUID")
         }
@@ -810,8 +808,8 @@ loadStudyData <- function(config,
 
     if(cellTypeDefinitions){
         stDat$cellTypes <- setCellTypes(getFiles(path = config$meta_dir,
-                                        files = config$meta_files,
-                                        pattern = "CellTypes.xlsx"))
+                                                 files = config$meta_files,
+                                                 pattern = "CellTypes.xlsx"))
     }
 
     if(markerList){
@@ -833,6 +831,8 @@ loadStudyData <- function(config,
 
     if(analyses){
         stDat$analysisList <- setAnalyses(config$statistics_conditions_file, stDat$conds)
+        ### TEMP
+        stDat$analysisList <- stDat$analysisList[c("fractions", "densities")]
     }
 
     if(sampleAnnotation || annotatedCells || neighborhoodCounts || tmeCellStatus){
@@ -848,14 +848,19 @@ loadStudyData <- function(config,
                                       id = config$cell_dive_id)
     }
 
-    if(neighborhoodCounts){
-        stDat$nbhdCounts <- setNbhdCounts(nbhdDir = config$neighborhood_dir,
-                                          nbhdCountsDir = config$neighborhood_counts_dir,
-                                          cells = stDat$annCells,
-                                          id = config$cell_dive_id,
-                                          analyses = stDat$analysisList,
-                                          studyAnn = stDat$sampAnn)
-    }
+    #if(neighborhoodCounts){
+#        stDat$nbhdCounts <- setNbhdCounts(nbhdDir = config$neighborhood_dir,
+#                                          nbhdCountsDir = config$neighborhood_counts_dir,
+#                                          cells = stDat$annCells,
+#                                          id = config$cell_dive_id,
+#                                          analyses = stDat$analysisList,
+#                                          studyAnn = stDat$sampAnn)
+
+    #    nbhdDirs <- file.path(config$neighborhood_dir, c("C2", "C3"))
+    #    stDat$nbhdCounts <- loadNeighborhoodCounts(nbhdDirs, 
+    #                                               config$neighborhood_counts_dir,
+    #                                               stDat$annCells, stDat$markers)
+    #}
 
     if(cellsInTumorNeighborhood || tmeSampleStatus || tmeCellStatus){
         stDat <- c(stDat, 
@@ -1264,7 +1269,6 @@ parseStatsQuestions <- function(questionsXLSXfile){
     qList
 }
 
-
 #' Given a directory containing neighborhood data, load only those files
 #' that are needed for the analyses to be run
 #' 
@@ -1274,39 +1278,46 @@ parseStatsQuestions <- function(questionsXLSXfile){
 #' @param nbhdAnalyses   list with two items: 'nfracs' and 'navgcounts' describing all 
 #'                       neighborhood analyses to be run (see docs for format of [StudyName]_Conditions.xlsx)
 #' @param nbhdCountsDir  directory of pre-compiled neighborhood data files (one per samples)
-#' @param fovs           character vector of FOV IDs to be included in returned result; default: "all"
+#' @param sampAnn        flattened table of all sample/study annotation
+#' @param markers        character vector of all markers used in study
+#' @param cellDiveID     CellDive_ID to be included in returned macro neighborhood data; default = "all"
 #'
 #' @return complete table of all neighborhood data associated with analyses to be run
-loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, sampAnn, cellDiveID = "All"){
+#' 
+loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, sampAnn, 
+                                      markers, cellDiveID = "All"){
 
     nameMap <- c("MHCIIpos_macro" = "M1",
                  "MHCIIneg_macro" = "M2")
 
     fmtFiles <- file.path(nbhdCountsDir, dir(nbhdCountsDir))
-    cdids <- sampAnn %>% pull(CellDive_ID) %>% unique
+    cdids <- tolower(cellDiveID)
 
-    if(tolower(cellDiveID) != "all"){
-        cdids <- cellDiveID
-        fmtFiles <- fmtFiles[grepl(paste0("^", cellDiveID, "_"), basename(fmtFiles))]
+    if(cdids != "all"){
+        fmtFiles <- fmtFiles[grepl(paste0("^", cdids, "_"), basename(fmtFiles))]
+        sampAnn <- sampAnn %>% filter(CellDive_ID == cdid)
     }
+    fovs <- sampAnn$FOV_ID
+
+
+    nbhdFiles <- c()
+    for(nd in nbhdDirs){ nbhdFiles <- c(nbhdFiles, file.path(nd, dir(nd))) }
+
+    nFile <- nbhdFiles[grepl(gsub("/","_",paste0("-",oldC,"____")),nbhdFiles)]
+    log_info(paste0("Loading unformatted neighborhood counts from file: ", nFile))
+    nDat  <- readRDS(nFile) %>% filter(FOV %in% fovs)
 
     dat <- tibble()
-    
-    for(cdid in cdids){
+    for(cdid in unique(sampAnn$CellDive_ID)){
 
         nbhdFile <- fmtFiles[grepl(paste0("^", cdid, "_"), basename(fmtFiles))]
-        fovs <- sampAnn %>% 
-                filter(CellDive_ID == cdid) %>%
-                pull(FOV_ID)
 
         if(fileDone(nbhdFile)){
             log_info(paste0("Loading pre-computed neighborhood counts from file ",nbhdFile))
             dat <- dat %>%
                    bind_rows(readRDS(nbhdFile)) 
         } else {
- 
-            nbhdFiles <- c()
-            for(nd in nbhdDirs){ nbhdFiles <- c(nbhdFiles, file.path(nd, dir(nd))) }
+
             centers <- unique(c(nbhdAnalyses$nfracs$`Center Population A`,
                                 nbhdAnalyses$nfracs$`Center Population B`,
                                 nbhdAnalyses$navgcounts$Center))
@@ -1328,6 +1339,7 @@ loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, sam
                 log_debug("**************************************")
 
                 nFile <- nbhdFiles[grepl(gsub("/","_",paste0("-",oldC,"____")),nbhdFiles)]
+                log_info(paste0("Loading unformatted neighborhood counts from file: ", nFile))
                 nDat  <- readRDS(nFile) %>% filter(FOV %in% fovs)
 
                 nbhds <- nbhdAnalyses$navgcounts %>% filter(Center %in% centers) %>% pull(Neighborhood) %>% unique()
@@ -1344,7 +1356,7 @@ loadMacroNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, sam
                     }
 
                     log_debug(paste0(x," out of ",length(nbhds),": ", nbhd))
-                    tmp <- filterForNeighborhood(nDat, oldNbhd)
+                    tmp <- filterForNeighborhood(nDat, oldNbhd, markers)
                     log_debug(paste0("    dim(tmp): ",paste(dim(tmp), collapse=",")))
                     if(nrow(tmp) == 0){ next }
                     nbhdDat <- nbhdDat %>%

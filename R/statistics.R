@@ -136,11 +136,11 @@ pseudoScale <- function(dat, groupVar, valueCol){
     tmp <- tmp %>%
            ungroup() %>%
            group_by_at(groupVar) %>%
-           filter_at(vars(valueCol), any_vars(. > 0 & . < 1))
+           filter_at(all_of(valueCol), any_vars(. > 0 & . < 1))
     if(nrow(tmp) > 0){
         ps <- tmp %>%
               summarize_at(vars(valueCol,"OM"), min) %>%
-              select_at(c(valueCol,"OM")) %>%
+              select_at(all_of(c(valueCol,"OM"))) %>%
               min()/2
 
         scaled <- dat[[valueCol]]
@@ -149,7 +149,7 @@ pseudoScale <- function(dat, groupVar, valueCol){
     } else {  ## nothing in between 0 and 1, assume densities
         ps <- (dat %>%
                ungroup() %>%
-               filter_at(vars(valueCol), any_vars(. > 0)) %>%
+               filter_at(all_of(valueCol), any_vars(. > 0)) %>%
                summarize_at(vars(valueCol), min) %>%
                pull(valueCol) - 1)/2
         scaled <- dat[[valueCol]]
@@ -170,8 +170,9 @@ pseudoScale <- function(dat, groupVar, valueCol){
 #'                        OR
 #'                     Population, Sample, AvgCount, [Group]
 #' @param allSamples  a vector containing the union of group1 samples and group2 samples ONLY
-#' @param groupVar    string representing name of variable to be compared; will be either a column name from sampAnnot
-#'                    or arbitrary string when comparing non-clinical variable (e.g., inside/outside, pos/neg microenv)
+#' @param groupVar    string representing name of variable to be compared; will be either a 
+#'                    column name from sampAnnot or arbitrary string when comparing non-clinical 
+#'                    variable (e.g., inside/outside, pos/neg microenv)
 #' @param countDat    table of neighborhood counts with at least columns for calcUnit, 'CenterCellType',
 #'                    'NeighborhoodCellType', and groupVar
 #' @param calcUnit    data column name containing values for which a single area value
@@ -291,7 +292,7 @@ getGroupMedianFractions <- function(allCountDat, groupVar, fracCol){
     group_by_at(c("CondTitle", groupVar)) %>%
     summarize(Median = median(!!as.name(fracCol), na.rm=T)) %>%
     spread_(groupVar, "Median", fill = 0) %>%
-    dplyr::rename_at(vars(groupNames), list(~ paste(., "median fraction")))
+    dplyr::rename_at(all_of(groupNames), list(~ paste(., "median fraction")))
 }
 
 getGroupMedianDensities <- function(dat, groupVar){
@@ -301,7 +302,7 @@ getGroupMedianDensities <- function(dat, groupVar){
     group_by_at(c("Cell State ID", "CondTitle", groupVar)) %>%
     summarize(Median = median(Density, na.rm=T)) %>%
     spread(groupVar, Median, fill=0) %>%
-    dplyr::rename_at(vars(groupNames), list(~ paste(., "median density")))
+    dplyr::rename_at(all_of(groupNames), list(~ paste(., "median density")))
 }
 
 getGroupMedianNeighborhoodAvgs <- function(dat, groupVar){
@@ -311,7 +312,7 @@ getGroupMedianNeighborhoodAvgs <- function(dat, groupVar){
     group_by_at(c(groupVar, "CondTitle")) %>%
     summarize(GroupMedian = median(AvgNbhdCellTypeCount, na.rm = T)) %>%
     spread(groupVar, GroupMedian, fill=0) %>%
-    dplyr::rename_at(vars(groupNames), list(~ paste(., "median")))
+    dplyr::rename_at(all_of(groupNames), list(~ paste(., "median")))
 }
 
 fractionsToLO <- function(fracDat, fracCol, groupVar){
@@ -563,7 +564,8 @@ getQuestionGroups <- function(question, sampAnnot, calcUnit = "FOV_ID", tumorNbh
         grpName <- getGroupName(question, g)
         for(filt in names(grp)){
             if(filt %in% names(grpAnn)){
-                grpAnn <- grpAnn %>% filter_at(vars(filt), any_vars(. %in% grp[[filt]]))
+                grpAnn <- grpAnn %>% 
+                          filter_at(all_of(filt), any_vars(. %in% grp[[filt]]))
             } else if(filt == "Cell Region") {
                 if(tolower(grp[[filt]]) %in% c("interface", "interface inside", "interface outside")){
                     grpAnn <- grpAnn %>% filter(FOV_type == "Interface")
@@ -853,7 +855,7 @@ qcQuestionGroups <- function(qDat, sGrps, groupVar, calcUnit="FOV_ID"){
         log_debug(paste0("Checking samples in [",x,"]"))
         for(grp in names(sGrps)){
             smps <- qDat[[x]] %>% 
-                    filter_at(vars(groupVar), all_vars(. == grp)) %>%
+                    filter_at(all_of(groupVar), all_vars(. == grp)) %>%
                     pull(calcUnit) %>% sort() %>% unique()
             if(!identical(sort(smps), sort(sGrps[[grp]]))){
                 notInData <- setdiff(sGrps[[grp]], smps)
@@ -1127,7 +1129,7 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
     ### Prep question data
     ###
     sGrps    <- getQuestionGroups(question, dat, calcUnit = calcUnit, tumorNbhdCells = tumorNbhdCells)
-    allSmps  <- unlist(sGrps, use.names=F)
+    allSmps  <- unique(unlist(sGrps, use.names=F))
     groupVar <- question$groupVar
 
     log_info(question$question)
@@ -1158,6 +1160,8 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
 
         qRes$fractions_complete <- lo
         qRes[[paste0("fractions_", filtName)]] <- lof
+    } else {
+        log_info("No fractions stats to report.")
     } 
 
     ###
@@ -1174,10 +1178,12 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
 
         qRes$densities_complete <- den
         qRes[[paste0("densities_", filtName)]] <- denf
+    } else {
+        log_debug("No densities stats to report")
     }
 
     ###
-    ### Neighborhood Fractions
+    ### Macro Neighborhood Fractions
     ###
     if("nfracs" %in% names(allAnalyses) && resGood(qDat, "nfracs")){
         log_info("Running neighborhood fraction stats")
@@ -1188,10 +1194,12 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
 
         qRes$nbhd_fracs_complete <- nlo
         qRes[[paste0("nbhd_fracs_", filtName)]] <- nlof
+    } else {
+        log_debug("No neighborhood fractions stats to report.")
     }
 
     ###
-    ### Neighborhood Average Counts
+    ### Macro Neighborhood Average Counts
     ###
     if("navgcounts" %in% names(allAnalyses) && resGood(qDat, "navgcounts")){
         log_info("Running neighborhood average count stats")
@@ -1205,12 +1213,15 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
 
         qRes$nbhd_averages_complete <- navgs
         qRes[[paste0("nbhd_averages_", filtName)]] <- navgsf
+    } else {
+        log_debug("No neighborhood average counts stats to report.")
     }
 
     ###
     ### Combine full fraction and density results into one 'mega sheet'
     ###
-    allFracDen <- NULL
+    allFracDen <- tibble()
+    lo2 <- tibble()
     if(!is.null(qRes$fractions_complete)){ 
         idxs <- which(names(lo) %in% toRename)
         lo2 <- lo
@@ -1228,15 +1239,15 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
         idxs <- which(names(den) %in% toRename)
         den2 <- den
         names(den2)[idxs] <- paste("Density", names(den2)[idxs])
-    
+
         allFracDen <- allFracDen %>%
-                      full_join(den2, by = intersect(names(lo2), names(den2))) 
-                      select(`Fraction Passed`, 
-                             `Density Passed`,
-                             `Cell State ID`, 
-                             `Cell State`, 
-                              Population,
-                              everything()) %>%
+                      full_join(den2, by = intersect(names(lo2), names(den2))) %>% 
+                      select(any_of(c("Fraction Passed", 
+                                      "Density Passed",
+                                    "Cell State ID", 
+                                    "Cell State", 
+                                    "Population",
+                                    names(.)))) %>%
                       arrange(as.numeric(`Cell State ID`))
         qRes$densities_complete <- NULL
     }
@@ -1247,6 +1258,7 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
     ###
     ### log filter criteria
     ###
+    log_debug("  reporting filters used")
     filtTbl <- tibble()
     for(f in names(filtList)){
         filtTbl <- filtTbl %>%
@@ -1259,7 +1271,8 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
     ###
     ### summarize samples
     ###
-    samples        <- sampAnn %>% filter(Sample %in% allSmps) 
+    log_debug("  reporting summary of samples included in comparison groups")
+    samples        <- sampAnn %>% filter(!!as.name(calcUnit) %in% allSmps) 
     sample_summary <- samples
 
     if(groupVar %in% names(samples)){
@@ -1284,6 +1297,7 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
                     "samples",
                     "sample_summary")
 
+    log_debug("  QCing results counts")
     logStatsQC(qRes, allAnalyses, allSmps, calcUnit = calcUnit)
 
     qRes[sortedTabs[sortedTabs %in% names(qRes)]]
@@ -1394,7 +1408,7 @@ condsNoSignif <- function(dat, indivIDCol, signifCol){
     select_at(c("Cell State ID", indivIDCol, signifCol)) %>%
     unique() %>%
     spread(indivIDCol, signifCol) %>%
-    filter_at(vars(unique(dat[[indivIDCol]])), all_vars(is.na(.))) %>%
+    filter_at(all_of(unique(dat[[indivIDCol]])), all_vars(is.na(.))) %>%
     pull(`Cell State ID`)
 }
 

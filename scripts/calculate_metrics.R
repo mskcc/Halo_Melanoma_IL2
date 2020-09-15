@@ -113,32 +113,34 @@ cellRegions <- c("fov", "interface", "interface inside", "interface outside", "n
 ###############################################
 ###           INITIALIZE ALL DATA           ###
 ###############################################
+stDat <- NULL
+allSets <- NULL
 if(tolower(cfg$focus) == "fov"){
-    all <- list(cuFOV = list(CU = "FOV_ID", CR = c("fov")))
+    allSets <- list(cuFOV = list(CU = "FOV_ID", CR = c("fov")))
 
-    loadGlobalStudyData(cfg, 
-                        analyses = TRUE,
-                        conditions = TRUE,
-                        questions = TRUE,
-                        neighborhoodCounts = TRUE,
-                        cellsInTumorNeighborhood = FALSE,
-                        tmeCellStatus = FALSE)
+    stDat <- loadStudyData(cfg, 
+                           analyses = TRUE,
+                           conditions = TRUE,
+                           questions = TRUE,
+                           neighborhoodCounts = FALSE,
+                           cellsInTumorNeighborhood = FALSE,
+                           tmeCellStatus = FALSE)
 
 } else if(tolower(cfg$focus) == "interface"){
 
-    all <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions[-1]),
-                cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
-                cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
+    allSets <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions[-1]),
+                    cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
+                    cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
 
-    loadGlobalStudyData(cfg, all = T)
+    stDat <- loadStudyData(cfg, all = T)
 
 } else {
 
-    all <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions),
-                cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
-                cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
+    allSets <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions),
+                    cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
+                    cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
 
-    loadGlobalStudyData(cfg, all = T)
+    stDat <- loadStudyData(cfg, all = T)
 
 } 
 
@@ -147,12 +149,14 @@ if(tolower(cfg$focus) == "fov"){
 ###          CALCULATE ALL METRICS          ###
 ###############################################
 
-lapply(all, function(x){
+lapply(allSets, function(x){
     lapply(x$CR, function(cr, cuCols){
-        precalculateMetrics(annCells, 
-                            nbhdCounts, 
-                            tumorNbhdCells, 
-                            analysisList,
+        precalculateMetrics(stDat$annCells, 
+                            stDat$sampAnn,
+                            stDat$markers,
+                            stDat$nbhdCounts, 
+                            stDat$tumorNbhdCells, 
+                            stDat$analysisList,
                             cfg$metrics_dir, 
                             cr, 
                             cuCols, 

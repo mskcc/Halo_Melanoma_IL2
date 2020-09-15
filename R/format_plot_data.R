@@ -96,7 +96,7 @@ setConditionOrder <- function(conds, ids, cellTypes, statsFile = NULL, sheet = N
     ## data already contains Cell_type column associated with NUMERATOR condition, 
     ## but we need to change that in this case to match the DENOMINATOR condition
     if(!is.null(facetY)){
-        cnds <- assignClasses(cnds, facetY, cellTypes, facetOrder = facetOrder)
+        cnds <- assignClasses(cnds, facetY, cellTypes, facetOrder = facetOrder) %>% unique()
     } else {
         cnds$facet <- NA
     }
@@ -417,7 +417,7 @@ formatMedians <- function(dat, c2p, groups, calcCol, layout){
     meds
 }
 
-formatIndivDatForPlotting <- function(dat, idMap, layout){
+formatIndivDatForPlotting <- function(dat, idMap, layout, xVar = "Sample_ID", xOrder = NULL){
     iDat <- dat %>%
             left_join(idMap, by = intersect(names(.), names(idMap))) %>%
             left_join(layout, by = intersect(names(.), names(layout))) %>%
@@ -426,8 +426,17 @@ formatIndivDatForPlotting <- function(dat, idMap, layout){
                                    ifelse(Value > 1, "up",
                                           ifelse(Value < 1, "down",
                                                  ifelse(Value == 1, "no change", NA)))))
-    iDat$x <- customOrder(iDat$`Lesion ID`, idMap$`Lesion ID`[idMap$`Lesion ID` %in% iDat$`Lesion ID`])
-    iDat$x <- factor(iDat$x, levels = sort(unique(iDat$x)))
+
+    xVals <- intersect(unique(iDat[[xVar]]), xOrder)
+    if(!all(xVals %in% xOrder)){
+       log_warn("Some x variables included in xOrder are missing.")
+    } else if(!all(xOrder %in% iDat[[xVar]])){
+       log_warn("Some x variables included in data are NOT included in xOrder.")
+    }
+    xOrder <- xOrder[xOrder %in% xVals]
+
+    iDat$x <- customOrder(iDat[[xVar]], xOrder) 
+    iDat$x <- factor(iDat$x, levels = seq(xOrder)) 
 
     iDat
 }

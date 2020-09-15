@@ -79,8 +79,8 @@ getClassCountSummaries <- function(dat, cellTypes, classCols=NULL, summarizeBy=N
                      spread(sb,CellCount) %>%
                      ungroup() %>%
                      mutate(Total = rowSums(.[,-1], na.rm=T)) %>%
-                     select(!!as.name(cl), Total, everything()) %>%
-                     filter_at(vars(cl), all_vars(!is.na(.)))
+                     select(all_of(cl), Total, everything()) %>%
+                     filter_at(all_of(cl), all_vars(!is.na(.)))
 
             ## summarize additional misc classes that are only in Classifiers column
             addlVals <- cellTypes %>% 

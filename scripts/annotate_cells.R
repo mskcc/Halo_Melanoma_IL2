@@ -37,6 +37,8 @@ usage <- function(){
                                     is NULL
 
           [OPTIONAL]
+            --force_reannotation  when TRUE, will start with rethresholded halo object analysis files
+                                  even if annotated_cells_file already exists; default: FALSE
             --data_files          full paths to each file to be included in analysis
             --manifest            YAML file containing one or more parameter; NOTE: arguments on command 
                                   line override manifest arguments!!!         
@@ -75,7 +77,8 @@ annDat <- annotateCells(args$annotated_cells_file,
                         metaDataFile = args$meta_data_file, 
                         numThreads = args$number_threads, 
                         filterExclusions = TRUE, 
-                        controlMarker = args$control_marker)
+                        controlMarker = args$control_marker,
+                        forceReannotation = args$force_reannotation)
 
 log_debug("Annotated:")
 log_debug(paste("    UUIDs:\t", nrow(annDat)))

@@ -104,8 +104,9 @@ getCellTypes <- function(cellTypesXLSX){
                                    x <- sort(unlist(strsplit(x,",")))
                                    exp <- tibble(Pos_markers = paste(x[!grepl("-",x)],
                                                                      collapse=","),
-                                          Neg_markers = paste(c(neg, x[grepl("-",x)]),
-                                                            collapse=","))
+                                          Neg_markers = paste(c(neg, 
+                                                                gsub("\\-", "", x[grepl("-",x)])),
+                                                                collapse=","))
                                    bind_cols(curRow %>% select(-c(Pos_markers,Neg_markers)), exp)
                               }
                     ) %>%
@@ -116,42 +117,42 @@ getCellTypes <- function(cellTypesXLSX){
 
         labelUsing <- curRow %>% pull(Combo_label) %>% tolower()
         if(!labelUsing %in% c("tag","tags") && !is.na(labelUsing)){
-            expanded$Tag <- labelCellTypes(expanded$Pos_markers, labelUsing=labelUsing, tags=expanded$Tag)
+            expanded$Tag <- labelCellTypes(expanded$Pos_markers, 
+                                           labelUsing=labelUsing, 
+                                           tags=expanded$Tag)
         }
 
         allExpanded <- bind_rows(allExpanded, expanded)
 
     }
 
-    allExpanded$Neg_markers <- gsub("-","",allExpanded$Neg_markers)
-
-
     #### LATE MODIFICATIONS
     rw <- which(allExpanded$Cell_type == "B cell")
-    allExpanded[rw, c("Subtype", "Abbrev_label_for_figures", "Subscript")] <- c("All", "B", "All")
+    allExpanded[rw, c("Subtype", "Abbrev_label_for_figures", "Subscript")] <- list("All", "B", "All")
     rw <- which(allExpanded$Cell_type == "Other leukocyte")
-    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- c("Leuk", "Other")
+    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- list("Leuk", "Other")
     rw <- which(allExpanded$Cell_type == "Tumor")
-    allExpanded[rw, c("Subtype", "Abbrev_label_for_figures", "Subscript")] <- c("All", "Tumor", "All")
+    allExpanded[rw, c("Subtype", "Abbrev_label_for_figures", "Subscript")] <- list("All", "Tumor", "All")
     rw <- which(allExpanded$Subtype == "Natural killer cell")
-    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- c("NK", "")
+    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- list("NK", "")
     rw <- which(allExpanded$Subtype == "Natural killer T cell")
-    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- c("NKT", "")      
+    allExpanded[rw, c("Abbrev_label_for_figures", "Subscript")] <- list("NKT", "")      
 
  
     allCT <- tibble(Category = "Immune",
                     Cell_type = c("Immune", "T cell", "Natural killer cell overall",
                                  "Macrophage/monocyte"),
-                   Subtype = "All",
-                   Abbrev = c("Immune", "T", "NK", "MΦ"),
-                   Subscript = c("All", "All", "All", "All"))
+                    Subtype = "All",
+                    Abbrev = c("Immune", "T", "NK", "MΦ"),
+                    Subscript = c("All", "All", "All", "All"),
+                    Classification_type = "type")
 
     allExpanded <- allExpanded %>%
                    mutate(Abbrev = getAbbrev(Abbrev_label_for_figures, Subscript)) %>%
                    select(-Abbrev_label_for_figures) %>%
-                   bind_rows(allCT) %>%
-                   select(Category, Cell_type, Subtype, Tag, Abbrev, Subscript) %>%
-                   unique()
+                   bind_rows(allCT) #%>%
+#                   select(Category, Cell_type, Subtype, Tag, Abbrev, Subscript) %>%
+#                   unique()
 
     allExpanded$Abbrev[allExpanded$Abbrev == "MΦ+"] <- "MΦ"
     ########################
@@ -598,6 +599,98 @@ getAllCombos <- function(markers){
     return(all.combos)
 }
 
+#' Remove any markers determined to be problematic after analysis
+#' 
+#' Most exclusions are determined prior to rethresholding, but this function
+#' allows users to exclude markers determined to be problematic during
+#' QC or any other analysis step.
+#'
+#' @param dat    data tibble loaded from halo object analysis RDA files, joined
+#'               with all sample and FOV IDs
+#' @param annot  flat annotation data returned from loadStudyAnnotations(),
+#'               including columns FOV_exclusion (see docs for 
+#'               details on format)
+#' @param return data tibble with any additional or markers removed 
+postAnalysisMarkerExclusions <- function(dat, annot){
+   
+    if(all(is.na(annot$Marker_exclusion) | annot$Marker_exclusion == "")){ return(dat) }
+
+    ## filter out markers
+    mx <- lapply(annot$Marker_exclusion[!is.na(annot$Marker_exclusion) & annot$Marker_exclusion != ""], 
+                 function(x) {
+                   length(unlist(strsplit(x, ",")))
+                 }
+                ) %>% unlist %>% max
+    sepCols <- paste0("Marker.", seq(1:mx))
+
+    mExcl <- annot %>%
+             filter(!is.na(Marker_exclusion), Marker_exclusion != "") %>%
+             select(CellDive_ID, FOV_number, Marker_exclusion) %>%
+             separate(Marker_exclusion, sepCols, sep=",") %>%
+             gather(all_of(sepCols), key = "tmp", value = Marker) %>%
+             select(-tmp) %>%
+             filter(!is.na(Marker)) %>%
+             unique %>%
+             mutate(REMOVE = "YES", Marker = gsub(" ", "", Marker))
+
+    tmp  <- dat %>% left_join(mExcl, by = intersect(names(.), names(mExcl)))
+
+    ## log what is to be removed
+    excl <- tmp %>%
+            filter(REMOVE == "YES") %>%
+            group_by(CellDive_ID, FOV_number, Marker) %>%
+            summarize(Count = n()) %>%
+            mutate(LOG = paste("Removed marker [", Marker, "] from", Count, 
+                               "cells in FOV", FOV_number, "of sample", CellDive_ID))
+    sapply(1:nrow(excl), function(x) log_debug(excl$LOG[x]))
+
+    tmp %>%
+    filter(is.na(REMOVE)) %>%
+    select(-REMOVE)
+}
+
+#' Remove any FOVs determined to be problematic after analysis
+#' 
+#' Most exclusions are determined prior to rethresholding, but this function
+#' allows users to exclude FOVs determined to be problematic during
+#' QC or any other analysis step.
+#'
+#' @param dat    data tibble loaded from halo object analysis RDA files
+#' @param annot  flat annotation data returned from loadStudyAnnotations(),
+#'               including columns FOV_exclusion (see docs for 
+#'               details on format)
+#' @param return data tibble with any additional FOVs removed 
+postAnalysisFOVexclusions <- function(dat, annot){
+
+    totalCellsRemoved <- 0
+
+    ## filter out FOVs
+    fExcl <- annot %>%
+             filter(!is.na(FOV_exclusion), FOV_exclusion != "") %>%
+             select(CellDive_ID, FOV_number) %>%
+             unique()
+
+    excl <- dat
+    if(nrow(fExcl) != 0){
+        for(x in 1:nrow(fExcl)){
+            rmv <- excl %>% 
+                   filter(CellDive_ID == fExcl$CellDive_ID[x],
+                          FOV_number == fExcl$FOV_number[x]) %>%
+                   pull(UUID)
+   
+            log_debug(paste0("Removing ", length(rm), "cells",
+                             " from FOV ", fExcl$FOV_number[x], 
+                             " of sample ", fExcl$CellDive_ID[x]))  
+        
+            totalCellsRemoved <- totalCellsRemoved + length(rmv)
+
+            excl <- excl %>% filter(!UUID %in% rmv)
+        }
+    }
+    log_debug(paste0("Removed ", nrow(fExcl), " entire FOVs for a total of ", totalCellsRemoved, " cells"))
+    
+    excl
+}
 
 #' Add to cell-level tibble columns for positive markers and cell classifications
 #' 
@@ -622,7 +715,8 @@ getAllCombos <- function(markers){
 #' @return all annotated data
 annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL, 
                           metaFiles = NULL, metaDataFile = NULL, numThreads = 1, 
-                          filterExclusions = FALSE, controlMarker = "DAPI"){
+                          filterExclusions = FALSE, controlMarker = "DAPI", 
+                          forceReannotation = FALSE){
 
     reclassify <- FALSE
 
@@ -630,7 +724,7 @@ annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL,
     ### load data
     ###
     allDat <- NULL
-    if(!fileDone(annotatedCellsFile)){
+    if(!fileDone(annotatedCellsFile) || forceReannotation){
         
         annot <- loadStudyAnnotations(metaFiles = metaFiles, metaDataFile = metaDataFile)
         idMap <- annot$IDs
@@ -644,7 +738,9 @@ annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL,
                                   nThreads = nThreads,
                                   filterExclusions = TRUE, 
                                   controlMarker = controlMarker) %>%
-                  joinIDs(idMap) %>%
+                  joinIDs(annot$IDs) %>%
+                  postAnalysisMarkerExclusions(annot$flat) %>%
+                  postAnalysisFOVexclusions(annot$flat) %>%
                   spread(Marker, Value)
 
         log_debug(paste0("Starting with ",nrow(allDat)," ", controlMarker, "+ cells"))
@@ -656,7 +752,7 @@ annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL,
 
     log_debug("Reading meta data...")
     ctFile    <- metaFiles[grep("_CellTypes.xlsx", metaFiles)]
-    cellTypes <- openxlsx::read.xlsx(ctFile, 1, check.names = F) %>% as_tibble()
+    cellTypes <- getCellTypes(ctFile)
 
     mrkrFile  <- metaFiles[grep("_Markers.xlsx", metaFiles)]
     markerDesc <- openxlsx::read.xlsx(mrkrFile, 1, check.names = F) %>% as_tibble()
@@ -671,7 +767,7 @@ annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL,
     ### annotate cell level data with cell type, subtype, etc. 
     ###
     log_debug("Adding cell annotation...")
-    annDat <- addCellTypes(annDat, cellTypes, markerDesc, reclassify=reclassify)
+    annDat <- addCellTypes(annDat, cellTypes, markerDesc)
 
     ###
     ### organize and filter columns

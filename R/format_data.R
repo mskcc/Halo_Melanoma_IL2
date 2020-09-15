@@ -643,7 +643,7 @@ formatNeighborhoodCounts <- function(nbhdCountsDir, annCells, cellDiveID = "All"
 
         ## remove redundant rows (those with N.Count != 0)
         tmp <- tmp %>%
-               gather(FOV_IDs, key="FOV_ID", value="N.Count") %>%
+               gather(all_of(FOV_IDs), key="FOV_ID", value="N.Count") %>%
                filter(N.Count == 0)
 
         allNbhdCounts <- allNbhdCounts %>%

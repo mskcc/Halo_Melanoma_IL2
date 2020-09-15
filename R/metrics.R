@@ -436,6 +436,8 @@ getMetricsSubDir <- function(cellRegion, metricsDir){
 #' 
 #' @param annCells         tibble of annotated cell data where each row represents a single 
 #'                         unique cell
+#' @param sampAnn          tibble of flattened study sample annotation
+#' @param markers          vector of all markers used in study
 #' @param nbhdCounts       tibble of macrophage neighborhood counts
 #' @param tumorNbhdCells   vector of UUIDs of cells that are within 30 microns of at least
 #'                         one tumor cell
@@ -447,7 +449,7 @@ getMetricsSubDir <- function(cellRegion, metricsDir){
 #' @param numThreads       number of threads 
 #' 
 #' @return nothing
-precalculateMetrics <- function(annCells, nbhdCounts, tumorNbhdCells, analysisList,
+precalculateMetrics <- function(annCells, sampAnn, markers, nbhdCounts, tumorNbhdCells, analysisList,
                                 metricsDir, cellRegion, calcUnitCols, cellDiveID = "All", 
                                 numThreads = 1){
 
@@ -466,14 +468,19 @@ precalculateMetrics <- function(annCells, nbhdCounts, tumorNbhdCells, analysisLi
         analyses <- analysisList[names(analysisList) == "fractions"]
         tme      <- tumorNbhdCells
     } else {
-        nbhd <- nbhdCounts %>%
-                left_join(sampAnn %>% select(FOV_ID, Sample_ID), by="FOV_ID") %>%
-                mutate(UUID = C.UUID) %>%
-                filterDataForCellRegion(cr) %>%
-                select(-UUID) %>%
-                transformCalcUnit(calcUnitCols)
-        areas <- filterForAreas(annCells, cr, groupBy = calcUnitCols) %>%
-                 transformCalcUnit(calcUnitCols)
+        if(any(c("navgcounts", "nfracs") %in% names(analysisList))){
+            nbhd <- nbhdCounts %>%
+                    left_join(sampAnn %>% select(FOV_ID, Sample_ID), 
+                              by = intersect(names(nbhdCounts), c("FOV_ID", "Sample_ID"))) %>%
+                    mutate(UUID = C.UUID) %>%
+                    filterDataForCellRegion(cr) %>%
+                    select(-UUID) %>%
+                    transformCalcUnit(calcUnitCols)
+        }
+        if("densities" %in% names(analysisList)){
+            areas <- filterForAreas(annCells, cr, groupBy = calcUnitCols) %>%
+                     transformCalcUnit(calcUnitCols)
+        }
     }
 
     dat <- annCells %>%
@@ -1012,7 +1019,7 @@ getPopulationMetrics <- function(dat, allAnalyses, markers, areas = NULL, calcUn
                      filter(C.UUID %in% dat$UUID) %>%
                      filterForCalculationUnits(calcUnit = calcUnit, include = include)
 
-        popDat$ncounts <- getNeighborhoodCounts(allCounts, allCenters, calcUnit) %>%
+        popDat$ncounts <- nbhdCounts %>% #getNeighborhoodCounts(allCounts, allCenters, calcUnit) %>%
                           filter(!is.na(!!as.name(calcUnit)))
     }
 

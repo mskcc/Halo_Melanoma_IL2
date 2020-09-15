@@ -200,9 +200,11 @@ filterConditionsByAnalysisType <- function(condIdx, analysisType){
 #'              and columns for Neighborhood cells
 #' @param nbhd  comma-delimited character string describing neighborhood cells to keep
 #'              (e.g., "Tconv8,PD1,LAG3,TIM3-")
+#' @param markers character vector containing all study markers, used to distinguish
+#'                markers from cell types in {nbhd} string
 #' 
 #' @return  filtered data tibble
-filterForNeighborhood <- function(dat, nbhd){
+filterForNeighborhood <- function(dat, nbhd, markers){
     n <- unlist(strsplit(nbhd,","))
     classes <- n[!n %in% c(markers, paste0(markers, "-"))]
     mrkrs <- n[n %in% c(markers, paste0(markers,"-"))]

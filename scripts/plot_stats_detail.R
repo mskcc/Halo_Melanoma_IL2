@@ -209,7 +209,7 @@ for(calc in names(cfg$calculations)){
 
             log_info(paste0("  Saving figure to file: ", outPDF))
             ggsave(p, height = pdfHeight, width = pdfWidth, units = "in",
-                      device = cairo_pdf, filename = outPDF)
+                   device = cairo_pdf, filename = outPDF)
 
           }, error = function(e){
                 print(e)
