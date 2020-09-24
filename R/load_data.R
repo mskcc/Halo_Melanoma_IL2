@@ -117,8 +117,8 @@ setSampleAnnotation <- function(metaFiles, id = NULL){
     tryCatch({
         sa <- loadStudyAnnotations(metaFiles)$flat %>%
               filter(is.na(FOV_exclusion))
-        if(!is.null(id) && tolower(id) != "All"){
-             sa <- sampAnn %>% filter(CellDive_ID == id)
+        if(!is.null(id) && tolower(id) != "all"){
+             sa <- sa %>% filter(CellDive_ID == id)
         }
         sa
       }, error = function(e){
@@ -363,18 +363,20 @@ setGlobalNbhdCounts <- function(nbhdDir = NULL, nbhdCountsDir = NULL, cells = NU
 #' @param cells          annotated cells table
 #' @param id             CellDive_ID of sample to keep
 #' @param analyses       list of all analyses
-#' @param studyAnn       flattened table of all study meta data
 #' 
 #' @return nothing
-setNbhdCounts <- function(nbhdDir = NULL, nbhdCountsDir = NULL, cells = NULL,
-                                id = NULL, analyses = NULL, studyAnn = NULL){
+setNbhdCounts <- function(nbhdDir, nbhdCountsDir, cells, analyses,
+                          id = NULL, threads = 1){
 
     log_info("Setting table of macrophage neighborhood counts...")
     tryCatch({
         nbhdDirs <- file.path(nbhdDir, c("C2", "C3"))
-        ncts <- loadMacroNeighborhoodData(nbhdDirs, analyses, nbhdCountsDir,
-                                          studyAnn, cellDiveID = id)
-        formatNeighborhoodCounts(nbhdCountsDir, cells, cellDiveID = id)
+        loadNeighborhoodCounts(nbhdDirs, 
+                               analyses, 
+                               nbhdCountsDir, 
+                               cells,
+                               cellDiveID = id, 
+                               numThreads = threads)
       }, error = function(e){
         log_error(e)
         log_warn("Table of neighborhood counts NOT set.")
@@ -799,7 +801,7 @@ loadStudyData <- function(config,
     stDat <- list()
 
     if(is.null(config$cell_dive_id)){
-        config$cell_dive_id <- "All"
+        config$cell_dive_id <- "all"
     }
 
     if(!is.null(config$debug) && (config$debug == "yes" || config$debug)){
@@ -831,13 +833,11 @@ loadStudyData <- function(config,
 
     if(analyses){
         stDat$analysisList <- setAnalyses(config$statistics_conditions_file, stDat$conds)
-        ### TEMP
-        stDat$analysisList <- stDat$analysisList[c("fractions", "densities")]
     }
 
     if(sampleAnnotation || annotatedCells || neighborhoodCounts || tmeCellStatus){
         metaFiles <- getFiles(path = config$meta_dir, pattern = ".xlsx")
-        stDat$sampAnn <- setSampleAnnotation(metaFiles)
+        stDat$sampAnn <- setSampleAnnotation(metaFiles, id = config$cell_dive_id)
     }
 
     if(annotatedCells || neighborhoodCounts || tmeSampleStatus || tmeCellStatus){
@@ -848,19 +848,15 @@ loadStudyData <- function(config,
                                       id = config$cell_dive_id)
     }
 
-    #if(neighborhoodCounts){
-#        stDat$nbhdCounts <- setNbhdCounts(nbhdDir = config$neighborhood_dir,
-#                                          nbhdCountsDir = config$neighborhood_counts_dir,
-#                                          cells = stDat$annCells,
-#                                          id = config$cell_dive_id,
-#                                          analyses = stDat$analysisList,
-#                                          studyAnn = stDat$sampAnn)
-
-    #    nbhdDirs <- file.path(config$neighborhood_dir, c("C2", "C3"))
-    #    stDat$nbhdCounts <- loadNeighborhoodCounts(nbhdDirs, 
-    #                                               config$neighborhood_counts_dir,
-    #                                               stDat$annCells, stDat$markers)
-    #}
+    if(neighborhoodCounts){
+        nAnalyses <- stDat$analysisList[c("navgcounts", "nfracs")]
+        stDat$nbhdCounts <- setNbhdCounts(config$neighborhood_dir, 
+                                          config$neighborhood_counts_dir, 
+                                          cells = stDat$annCells,
+                                          nAnalyses,
+                                          id = config$cell_dive_id, 
+                                          threads = config$number_threads)
+    }
 
     if(cellsInTumorNeighborhood || tmeSampleStatus || tmeCellStatus){
         stDat <- c(stDat, 
@@ -887,7 +883,154 @@ loadStudyData <- function(config,
     stDat
 }
 
+#' Read neighborhood data into a single tibble
+#' 
+#' Read neighborhood data into a single tibble and do not reformat in any way
+#'
+#' @param nbhdDirs      vector of directories containing all files, organized
+#'                      by center cell types, of cell to cell distances within 30 microns
+#' @param nbhdAnalyses  all center-neighborhood analyes to be run; only data needed
+#'                      to run these analyses will be read and saved
+#' @param fovs          vector of FOVs to keep
+#' @param nameMap       named list where names are current cell type identifiers and
+#'                      values are previous cell type identifiers; default = NULL
+#' 
+#' @return tibble of center cell to neighborhood cell distances
+loadRawNeighborhoodData <- function(nbhdDirs, nbhdAnalyses, fovs, nameMap = NULL){
 
+    centers <- unique(c(nbhdAnalyses$nfracs$`Center Population A`,
+                        nbhdAnalyses$nfracs$`Center Population B`,
+                        nbhdAnalyses$navgcounts$Center))
+
+    mainCTs <- unique(unlist(lapply(strsplit(centers,","), function(x){ x[1] })))
+
+    oldCenters <- centers
+    if(!is.null(nameMap)){
+        for(nm in names(nameMap)){
+            oldCenters <- gsub(paste0("^",nm), nameMap[[nm]], oldCenters)
+        }
+    }
+
+    nbhdFiles <- lapply(nbhdDirs, function(x) file.path(x, dir(x))) %>% unlist
+
+    nbhdDat <- tibble()
+    for(ct in mainCTs){
+        oldC <- ifelse(ct %in% names(nameMap), nameMap[[ct]], ct)
+
+        log_debug("**************************************")
+        log_debug(ct)
+        log_debug("**************************************")
+
+        nFile <- nbhdFiles[grepl(gsub("/","_",paste0("\\-",oldC,"____")),nbhdFiles)]
+        log_info(paste0("Loading unformatted neighborhood counts from file: ", nFile))
+        nbhdDat <- nbhdDat %>%
+                   bind_rows(readRDS(nFile) %>% 
+                             filter(FOV %in% fovs) %>% 
+                             select(-any_of(c("C2", "C3")))) %>%
+                   unique()
+    }
+
+    nbhdDat
+
+}
+
+#' Load neighborhood count data
+#'
+#' Load formatted table of unique center cells and for each of those cells, the count
+#' cells of each neighborhood cell type 
+#' 
+#' @param nbhdDirs      vector of directories containing all cell to neighborhood 
+#'                      cell pairs (raw neighborhood data)
+#' @param nbhdAnalyses  list of all neighborhood analyses to be run
+#' @param nbhdCountsDir directory where neighborhood counts tables exist or where new 
+#'                      tables should be saved
+#' @param annCells      table of annotated cells
+#' @param cellDiveID    cellDiveID to filter neighborhood counts for; default='all'
+#' @param numThreads    number of threads to use
+loadNeighborhoodCounts <- function(nbhdDirs, nbhdAnalyses, nbhdCountsDir, annCells,
+                                   cellDiveID = "all", numThreads = 1){
+
+    cellDat <- annCells %>%
+               select(any_of(c("CellDive_ID", "Sample_ID", "FOV_ID", "Band", "UUID"))) %>%
+               rename(C.UUID = UUID)
+
+    cdids <- unique(cellDat$CellDive_ID)
+    if(!is.null(cellDiveID) && tolower(cellDiveID) != "all"){
+        cdids <- cellDiveID
+    }
+
+    ncountsFiles <- file.path(nbhdCountsDir, paste0(cdids, "_nbhd_counts.rda"))
+
+    if(all(file.exists(ncountsFiles)) && all(file.size(ncountsFiles) > 0)){
+        cl <- makeCluster(numThreads, type = "FORK", outfile = "")
+        clusterExport(cl, c('ncountsFiles'), envir = environment())
+        ncounts <- parLapply(cl, ncountsFiles, function(x){
+                       log_debug(paste0("Reading neighborhood counts from file: ", x))
+                       readRDS(x)
+                   }) %>% 
+                   bind_rows() %>%
+                   rename(FOV_ID = FOV) %>%
+                   left_join(cellDat, by = intersect(names(.), names(cellDat))) %>%
+                   select(dplyr::matches("_ID"), C.UUID, any_of("Band"), 
+                          CenterCellType, NeighborhoodCellType, N.Count)
+        stopCluster(cl)
+        return(ncounts)
+    }
+
+    nameMap <- c("MHCIIpos_macro" = "M1",
+                 "MHCIIneg_macro" = "M2")
+
+    centers <- unique(c(nbhdAnalyses$nfracs$`Center Population A`,
+                        nbhdAnalyses$nfracs$`Center Population B`,
+                        nbhdAnalyses$navgcounts$Center))
+
+    nbhds <- c(nbhdAnalyses$navgcounts %>%
+                 filter(Center %in% centers) %>%
+                 pull(Neighborhood),
+               nbhdAnalyses$nfracs %>%
+                 filter(`Center Population A` %in% centers) %>%
+                 pull(`Neighborhood Population A`),
+               nbhdAnalyses$nfracs %>%
+                 filter(`Center Population B` %in% centers) %>%
+                 pull(`Neighborhood Population B`)) %>%
+             unique()
+
+    fovs <- annCells %>% filter(CellDive_ID %in% cdids) %>% pull(FOV_ID) %>% unique
+    rawNbhds <- loadRawNeighborhoodData(nbhdDirs, nbhdAnalyses, fovs, nameMap = nameMap)
+
+    cl <- makeCluster(numThreads, type = "FORK", outfile = "")
+    clusterExport(cl,
+                  c('ncountsFiles', 'rawNbhds', 'annCells', 'centers', 'nbhds', 'nameMap'),
+                  envir = environment())
+    ncounts <- parLapply(cl, cdids, function(cdid){
+                   log_debug(cdid)
+
+                   nfile <- ncountsFiles[grepl(paste0("^", cdid, "_"), basename(ncountsFiles))]
+                   if(fileDone(nfile)){
+                       log_debug(paste0("Reading neighborhood counts from file: ", nfile))
+                       readRDS(nfile)
+                   }
+
+                   cFOVs <- annCells %>% filter(CellDive_ID == cdid) %>% pull(FOV_ID) %>% unique
+
+                   log_debug(paste0("Formatting counts and saving to file ", nfile))
+                   formatNeighborhoodCounts(rawNbhds %>% filter(FOV %in% cFOVs),
+                                            centers,
+                                            nbhds,
+                                            nameMap = nameMap,
+                                            outFile = nfile)
+
+                }) %>%
+                rename(FOV_ID = FOV) %>%
+                bind_rows() %>%
+                left_join(cellDat, by = intersect(names(.), names(cellDat))) %>%
+                select(dplyr::matches("_ID"), C.UUID, Band, 
+                        CenterCellType, NeighborhoodCellType, N.Count)
+    stopCluster(cl)
+
+    ncounts 
+
+}
 
 
 #' Generate a single tibble from several files

@@ -102,12 +102,12 @@ getCellTypes <- function(cellTypesXLSX){
         expanded <- combos %>%
                     lapply(., function(x){
                                    x <- sort(unlist(strsplit(x,",")))
-                                   exp <- tibble(Pos_markers = paste(x[!grepl("-",x)],
-                                                                     collapse=","),
+                                   curRow %>%
+                                   mutate(Pos_markers = paste(x[!grepl("-",x)],
+                                                              collapse=","),
                                           Neg_markers = paste(c(neg, 
                                                                 gsub("\\-", "", x[grepl("-",x)])),
                                                                 collapse=","))
-                                   bind_cols(curRow %>% select(-c(Pos_markers,Neg_markers)), exp)
                               }
                     ) %>%
                     bind_rows()
@@ -150,9 +150,7 @@ getCellTypes <- function(cellTypesXLSX){
     allExpanded <- allExpanded %>%
                    mutate(Abbrev = getAbbrev(Abbrev_label_for_figures, Subscript)) %>%
                    select(-Abbrev_label_for_figures) %>%
-                   bind_rows(allCT) #%>%
-#                   select(Category, Cell_type, Subtype, Tag, Abbrev, Subscript) %>%
-#                   unique()
+                   bind_rows(allCT) 
 
     allExpanded$Abbrev[allExpanded$Abbrev == "MΦ+"] <- "MΦ"
     ########################
@@ -784,3 +782,60 @@ annotateCells <- function(annotatedCellsFile, dataDir = NULL, dataFiles = NULL,
     annDat
 
 }
+
+#' Determine whether a cell meets the definition of a specific phenotype
+#' 
+#' Given a comma-delimited string representing a cell phenotype, in the form 
+#' [Cell Type/Subtype/Tag],[Marker1],[Marker2],[Marker3], and the cells' cell type
+#' classifiers and positive markers, return a 1 if the cell fits the phenotype and
+#' a 0 if it does not.
+#' 
+#' @param phenStr        comma-delimited string where the first element contains a cell
+#'                       type classifier (Cell_type, Subtype, Category or Tag) and the 
+#'                       remaining elements are any combination of positive and negative 
+#'                       markers
+#' @param classifierStr  semi-colon delimited string containing all classifiers that 
+#'                       apply to a cell
+#' @param posMarkerStr   comma-delimited string of positive and negative markers
+#' @param nameMap        list of out-dated classifiers named by the current ones used
+#'                       in phenStr
+cellFitsPhenotype <- function(phenStr, classifierStr, posMarkerStr, nameMap = NULL){
+
+    if(length(classifierStr) != length(posMarkerStr)){
+        stop("Vectors of classifier strings and positive marker strings differ in length.")
+    }
+
+    class <- gsub(",.*", "", phenStr)
+    if(class %in% names(nameMap)){ class <- nameMap[[class]] }
+
+    mrkrs <- unlist(strsplit(phenStr, ","))[-1]
+    pos <- mrkrs[!grepl("\\-", mrkrs)]
+    neg <- mrkrs[grepl("\\-", mrkrs)]
+
+    lapply(1:length(classifierStr), function(x){
+
+
+        if(!grepl(getClassifierPattern(class), classifierStr[x])){
+            return(0)
+        }
+
+        if(length(pos) > 0){
+            for(pm in pos){
+                if(!grepl(getClassifierPattern(pos, delim = ","), posMarkerStr[x])){
+                    return(0)
+                }
+            }
+        }
+
+        if(length(neg) > 0){
+            if(grepl(getClassifierPattern(neg, delim = ","), posMarkerStr[x])){
+                return(0)
+            }
+        }
+
+        1
+
+    }) %>% unlist()
+}
+
+

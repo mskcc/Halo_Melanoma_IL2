@@ -102,7 +102,7 @@ args <- processCMD(commandArgs(asValue=TRUE), defaults, minReq, usage)
 #####################################
 
 cfg <- resolveConfig(args, 
-                     read_yaml(args$annotation_config), 
+                     read_yaml(args$annotation_config_file), 
                      read_yaml(args$statistics_config_file))
  
 logParams(cfg, used) 
@@ -111,11 +111,11 @@ mkdir(cfg$statistics_tables_dir)
 ## set nbhd stuff to FALSE
 stDat <- loadStudyData(cfg, 
                        analyses = T, 
-                       conditions = T, 
                        questions = T, 
-                       neighborhoodCounts = T,
                        cellsInTumorNeighborhood = T, 
-                       tmeCellStatus = T)
+                       tmeSampleStatus = T) 
+
+stDat$analysisList <- stDat$analysisList[c("fractions", "densities")]
 
 ######################################
 ###        ANSWER  QUESTIONS       ###

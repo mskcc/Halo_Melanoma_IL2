@@ -1,8 +1,5 @@
 source("/home/byrne/halo/dev/melanoma/source_all.R")
 
-### TEMP
-source("/home/byrne/halo/dev/haloAnalysis/R/condition_detail_figure.R")
-
 library(argparse)
 
 ##### GET USER INPUT #####
@@ -53,8 +50,6 @@ log_filtering <- function(indiv, signif, bio, hmp, min.subpop, min.pop, max.fdr,
 
     totalRem <- numConds(indiv) - numConds(filtHMP)
     log_debug(paste("        [TOTAL CONDITIONS REMOVED FROM THIS SET OF COMPARISONS]", totalRem))
-    #finalNum <- numConds(filtHMP)
-    #log_debug(paste("        [CONDITIONS REMAINING]", finalNum))
 
 }
 
@@ -234,22 +229,74 @@ xOrder <- c("0_3","1_3","4_3","4_4","4_5","6_2","6_3",
 
 for(ct in names(calcInfo)){
     log_debug(paste("Calculation:",ct))
+    #pdfHeight = 8.5
+    pdfWidth = 12
+    outPDF = file.path(cfg$statistics_detail_dir, paste0("3d_3d_all_",ct,"_conditions.pdf"))
     suppressMessages(
-        plotSeparateCohortVsIndividual(finalDat[[paste0("filtered_",ct)]], 
-                                       allIndivDat[[ct]],
-                                       cfg, statsFiles, sheet, comps, ct, stDat$cellTypes, stDat$conds, 
-                                       idMap %>% filter(Lesion_response != "UT"),
-                                       facetY     = calcInfo[[ct]]$y_facets, 
-                                       effectCol  = calcInfo[[ct]]$effect_column, 
-                                       effectAbb  = calcInfo[[ct]]$effect_abbreviation,
-                                       calcCol    = calcInfo[[ct]]$calc_column,
-                                       facetOrder = facetOrder, 
-                                       popOrder   = popOrder, 
-                                       orderBy    = calcInfo[[ct]]$effect_column,
-                                       xVar       = "Sample_ID",
-                                       xOrder     = xOrder
-                                      )
+        pg <- plotSeparateCohortVsIndividual(finalDat[[paste0("filtered_",ct)]], 
+                                             allIndivDat[[ct]],
+                                             cfg, statsFiles, sheet, comps, ct, stDat$cellTypes, stDat$conds, 
+                                             idMap %>% filter(Lesion_response != "UT"),
+                                             facetY     = calcInfo[[ct]]$y_facets, 
+                                             effectCol  = calcInfo[[ct]]$effect_column,
+                                             effectAbb  = calcInfo[[ct]]$effect_abbreviation,
+                                             calcCol    = calcInfo[[ct]]$calc_column,
+                                             facetOrder = facetOrder,
+                                             popOrder   = popOrder,
+                                             orderBy    = calcInfo[[ct]]$effect_column,
+                                             xVar       = "Sample_ID",
+                                             xOrder     = xOrder,
+                                             idOrder    = idOrder,
+                                             stripWidth = unit(2,"cm")
+                                            )
     )
+    log_info(paste0("  Saving figure to file: ", outPDF))
+    ggsave(pg$figure, height = pg$pdfHeight, width = pdfWidth, units = "in",
+           device = cairo_pdf, filename = outPDF)
+}
+
+####
+#idOrder <- unique(finalDat[[paste0("filtered_", ct)]])
+idOrder <- c(509, 190, 66, 33, 89, 64, 31, 98, 219, 309, 186, 53, 19, 86, 171, 208, 298, 230, 422, 325, 358, 390, 438, 189)
+
+conds <- stDat$conds %>% filter(`Cell State ID` %in% idOrder)
+conds$Phenotype <- NA
+conds$Phenotype[which(as.numeric(conds$`Cell State ID`) %in% c(509, 190, 66, 33, 438))] <- "Cell Identity"
+conds$Phenotype[which(as.numeric(conds$`Cell State ID`) %in% c(89, 189))] <- "CD25"
+conds$Phenotype[which(as.numeric(conds$`Cell State ID`) %in% c(64,31,98,219,309))] <- "PD1,LAG3,TIM3"
+conds$Phenotype[is.na(conds$Phenotype)] <- "TIM3"
+
+conds$OuterFacet = ""
+
+conds <- conds %>% select(`Cell State ID`, Condition, Population, Phenotype, OuterFacet, Cell_type, Subtype)
+facetY <- c("OuterFacet", "Phenotype")
+facetOrder <- list(OuterFacet = "", Phenotype = c("Cell Identity", "CD25", "PD1,LAG3,TIM3", "TIM3"))
+
+for(ct in names(calcInfo)){
+    log_debug(paste("Calculation:",ct))
+    pdfWidth = 11.5
+    outPDF = file.path(cfg$statistics_detail_dir, paste0("3d_3d_selected_",ct,"_conditions.pdf"))
+    suppressMessages(
+        pg <- plotSeparateCohortVsIndividual(finalDat[[paste0("filtered_",ct)]], 
+                                             allIndivDat[[ct]],
+                                             cfg, statsFiles, sheet, comps, ct, stDat$cellTypes, conds, 
+                                             idMap %>% filter(Lesion_response != "UT"),
+                                             facetY     = facetY, 
+                                             effectCol  = calcInfo[[ct]]$effect_column, 
+                                             effectAbb  = calcInfo[[ct]]$effect_abbreviation,
+                                             calcCol    = calcInfo[[ct]]$calc_column,
+                                             facetOrder = facetOrder, 
+                                             popOrder   = popOrder, 
+                                             orderBy    = calcInfo[[ct]]$effect_column,
+                                             xVar       = "Sample_ID",
+                                             xOrder     = xOrder,
+                                             idOrder    = idOrder, 
+                                             stripWidth = unit(2,"cm")
+                                            )
+    )
+    log_info(paste0("  Saving figure to file: ", outPDF))
+    ggsave(pg$figure, height = pg$pdfHeight, width = pdfWidth, units = "in",
+           device = cairo_pdf, filename = outPDF)
 }
 
 

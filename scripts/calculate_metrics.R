@@ -77,7 +77,7 @@ minReq <- list("annotation_config_file", c("band_dir","fov_area_dir"), "cell_dat
                "statistics_questions_file",
                "tme_by_cell_dir") 
 
-defaults <- list(cell_dive_id = "All", focus = NA, number_threads = 1)
+defaults <- list(cell_dive_id = "all", focus = NA, number_threads = 1)
 
 if(!interactive()){
     suppressMessages(library(R.utils))
@@ -108,49 +108,32 @@ cfg   <- resolveConfig(aCfg, args)
 
 logParams(cfg, sort(names(cfg)[!names(cfg) %in% c("no-restore", "slave", "args", "file")]))
 
+stDat <- loadStudyData(cfg, all = T)
+
 cellRegions <- c("fov", "interface", "interface inside", "interface outside", "neighborhood")
+
 
 ###############################################
 ###           INITIALIZE ALL DATA           ###
 ###############################################
-stDat <- NULL
-allSets <- NULL
-if(tolower(cfg$focus) == "fov"){
-    allSets <- list(cuFOV = list(CU = "FOV_ID", CR = c("fov")))
-
-    stDat <- loadStudyData(cfg, 
-                           analyses = TRUE,
-                           conditions = TRUE,
-                           questions = TRUE,
-                           neighborhoodCounts = FALSE,
-                           cellsInTumorNeighborhood = FALSE,
-                           tmeCellStatus = FALSE)
-
-} else if(tolower(cfg$focus) == "interface"){
-
-    allSets <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions[-1]),
-                    cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
-                    cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
-
-    stDat <- loadStudyData(cfg, all = T)
-
-} else {
-
-    allSets <- list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions),
-                    cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
-                    cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1]))
-
-    stDat <- loadStudyData(cfg, all = T)
-
-} 
+allSets <- switch(tolower(cfg$focus),
+                  "fov"       = list(cuFOV = list(CU = "FOV_ID", CR = c("fov"))),
+                  "interface" = list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions[-1]),
+                                     cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
+                                     cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1])),
+                  list(cuFOV = list(CU = c("FOV_ID"), CR = cellRegions),
+                       cuFOVBand = list(CU = c("FOV_ID","Band"), CR = cellRegions[-1]),
+                       cuSampleBand = list(CU = c("Sample_ID","Band"), CR = cellRegions[-1])))
 
 
 ###############################################
 ###          CALCULATE ALL METRICS          ###
 ###############################################
-
 lapply(allSets, function(x){
     lapply(x$CR, function(cr, cuCols){
+        if(grepl("nterface", cr) && !any(stDat$sampAnn$FOV_type == "Interface")){
+            log_warn(paste0("No FOVs of type 'Interface'. No metrics to be calculated for cell region [", cr, "]"))
+        }
         precalculateMetrics(stDat$annCells, 
                             stDat$sampAnn,
                             stDat$markers,

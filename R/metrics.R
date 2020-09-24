@@ -761,69 +761,47 @@ getNeighborhoodFractions <- function(neighborhoodCounts, fracsToCalculate,
 
     log_info("No pre-computed neighborhood fractions file found. Generating now...")
 
-    ftc <- fracsToCalculate
-    allFracs <- tibble()
-
-    ## check for center cell types that need to be subset (indicated by presence of a comma)
-    ## anything after the comma SHOULD be a marker combo, otherwise it would already
-    ## exist in the list of 'center' cell types
-    allCenterPops <- unique(c(ftc$`Center Population A`, ftc$`Center Population B`))
-    for(cct in allCenterPops){
-        log_debug(paste0("Adding rows for center cell type ",cct))
-        subDat <- getCenterCellTypeSubset(neighborhoodCounts, cct)
-        subftc <- ftc %>%
-                  filter(`Center Population A` == cct | `Center Population B` == cct)
-
-        ## pull out counts for numerator condition
-        num <- subftc %>%
-               select(`Cell State ID`, dplyr::matches("Population A")) %>%
-               left_join(subDat %>%
-                         select(`Center Population A` = CenterCellType,
-                                `Neighborhood Population A` = NeighborhoodCellType,
-                                everything()),
-                         by=c("Center Population A",
-                              "Neighborhood Population A")) %>%
-               dplyr::rename(NCountA=N.Count) %>%
-               filter(!is.na(`Cell State ID`)) %>%
-               select(`Cell State ID`,
-                      `Center Population A`,
-                      `Neighborhood Population A`,
-                      FOV_ID,
-                      C.UUID,
-                      NCountA)
-
-        ## pull out counts for denominator condition
-        dnm <- subftc %>%
-               select(`Cell State ID`, dplyr::matches("Population B")) %>%
-               left_join(subDat %>%
-                         select(`Center Population B` = CenterCellType,
-                                `Neighborhood Population B` = NeighborhoodCellType,
-                                everything()),
-                         by=c("Center Population B",
-                              "Neighborhood Population B")) %>%
-               dplyr::rename(NCountB=N.Count) %>%
-               filter(!is.na(`Cell State ID`))
-
-        ## join numerator and denominator
-        fracs <- num %>%
-                 full_join(dnm, by = intersect(names(num), names(dnm))) %>%
-                 filter(NCountB > 0) %>%
-                 filter(`Center Population A` != `Center Population B` |
-                        `Neighborhood Population A` != `Neighborhood Population B`) %>%
-                 mutate(Fraction = NCountA/NCountB) %>%
-                 group_by_at(c("Cell State ID",
-                               "Center Population A", "Neighborhood Population A",
-                               "Center Population B", "Neighborhood Population B",
-                             calcUnit)) %>%
-                 summarize(MeanFraction = mean(Fraction, na.rm = T))
-
-        allFracs <- allFracs %>% bind_rows(fracs)
+    getMeanFrac <- function(ncounts, center, nbhdA, nbhdB, calcUnit){
+        cts <- ncounts %>%
+               filter(CenterCellType == center, NeighborhoodCellType %in% c(nbhdA, nbhdB)) 
+        if(nrow(cts) == 0){
+            log_warn(paste0("No center cells of type: ", center, 
+                               " and neighborhood cell type(s): ", nbhdA, " or ", nbhdB))
+            return(NULL)
+        }
+        cts %>%
+        spread(NeighborhoodCellType, N.Count) %>%
+        mutate(Fraction = !!as.name(nbhdA)/!!as.name(nbhdB)) %>%
+        group_by_at(calcUnit) %>%
+        summarize(MeanFraction = mean(Fraction, na.rm=T)) %>%
+        mutate(`Center Population A` = center,
+               `Neighborhood Population A` = nbhdA, 
+               `Center Population B` = center,
+               `Neighborhood Population B` = nbhdB)
     }
+
+    meanFracs <- lapply(fracsToCalculate$`Cell State ID`, function(x){
+                     ftc <- fracsToCalculate %>% filter(`Cell State ID` == x) 
+                     tryCatch({ 
+                         getMeanFrac(neighborhoodCounts, 
+                                     ftc$`Center Population A`,       
+                                     ftc$`Neighborhood Population A`, 
+                                     ftc$`Neighborhood Population B`,
+                                     calcUnit) %>%
+                         mutate(`Cell State ID` = x)
+                     }, error = function(e){
+                         NULL
+                     })
+                 }) %>%
+                 bind_rows() %>%
+                 select(`Cell State ID`, calcUnit, `Center Population A`, `Neighborhood Population A`,
+                        `Center Population B`, `Neighborhood Population B`, MeanFraction)
+
     if(length(outFile) > 0 && !is.null(outFile)){
-        saveRDS(allFracs, outFile)
+        saveRDS(meanFracs, outFile)
     }
     
-    allFracs
+    meanFracs
 
 }
 
@@ -852,26 +830,15 @@ getNeighborhoodAverageCounts <- function(neighborhoodCounts, avgsToCalculate,
 
     log_info("No pre-computed neighborhood averages file found. Generating now...")
 
-    calcAvgs <- function(dat, calcUnit){
-        dat %>%
-        group_by_at(c("CenterCellType", "NeighborhoodCellType", calcUnit)) %>%
-        summarize(AvgNbhdCellTypeCount = mean(N.Count, na.rm = T))
-    }
-
-    avgs <- tibble()
-
-    subs <- unique(avgsToCalculate$Center)
-    for(cct in subs){
-        log_debug(paste0("Getting average counts by neighborhood population for center cell type ",cct))
-        nbhds <- avgsToCalculate %>%
-                 filter(Center == cct) %>%
-                 pull(Neighborhood) %>%
-                 unique()
-        subAvgs <- getCenterCellTypeSubset(neighborhoodCounts, cct) %>%
-                   filter(NeighborhoodCellType %in% nbhds) %>%
-                   calcAvgs(calcUnit)
-        avgs <- avgs %>% bind_rows(subAvgs)
-    }
+    avgs <- neighborhoodCounts %>%
+            group_by_at(c("CenterCellType", "NeighborhoodCellType", calcUnit)) %>%
+            summarize(AvgNbhdCellTypeCount = mean(N.Count, na.rm = T)) %>%
+            left_join(avgsToCalculate %>% 
+                        select(CenterCellType = Center, NeighborhoodCellType = Neighborhood) %>%
+                        mutate(keep = 1),
+                      by = c("CenterCellType", "NeighborhoodCellType"))  %>%
+            filter(keep == 1) %>%
+            select(-all_of("keep"))
 
     if(length(outFile) > 0 && !is.null(outFile)){
         saveRDS(avgs, outFile)

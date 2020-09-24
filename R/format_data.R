@@ -534,7 +534,8 @@ spreadIndivDat <- function(indivDat, comparison, grp1, grp2, calc, effect, idMap
                   !!as.name(paste(comparison, "Overall p.value")) := OverallPval,
                   !!as.name(paste(comparison, "Overall FDR")) := OverallFDR,
                   !!as.name(paste(comparison, "HMP")) := HMP,
-                  !!as.name(paste(comparison, "adjusted HMP")) := FDR) %>%
+                  !!as.name(paste(comparison, "adjusted HMP")) := FDR,
+                  dplyr::matches("NumSame")) %>%
             unique()
 
     for(pl in unique(indivDat[[currentIDcol]])){
@@ -581,6 +582,69 @@ getIDmap <- function(allQuestions, qPre = NULL, qNames = NULL){
     idMap
 }
 
+#' Format and summarize center cell to neighborhood distances
+#' 
+#' Given a complete table of center cell to neighborhood cell pairs,
+#' and a list of unique center cell type to neighborhood cell type analyses,
+#' count the number of cells of each type fall within the neighborhood of
+#' each center cell
+#'
+#' @param rawNbhds  complete table of center cell to neighborhood cell pairs
+#' @param centers   vector of center cell types for which neighborhood cells should be counted
+#' @param nbhds     vector of neighborhood cell types to count
+#' @param nameMap   list of outdated cell type classifiers named by the current ones
+#' @param outFile   RDA file to which summarized neighborhood cell type counts should be saved
+formatNeighborhoodCounts <- function(rawNbhds, centers, nbhds, nameMap = NULL, outFile = NULL){
+
+    dat <- rawNbhds %>%
+           select(-Center, -Neighbor, -Dij.micron, -C.MarkerPosTag, -N.MarkerPosTag)
+
+    for(center in centers){
+        log_debug(paste0("identifying center cell type: ",center))
+        dat <- dat %>%
+               mutate(!!as.name(paste0("C.", center)) :=
+                        cellFitsPhenotype(center, C.Classifiers, C.FullPosMarkerStr,
+                                          nameMap = nameMap))
+    }
+
+    for(nbhd in nbhds){
+        log_debug(paste0("identifying neighborhood cell type: ", nbhd))
+        dat <- dat %>%
+               mutate(!!as.name(paste0("N.", nbhd)) :=
+                        cellFitsPhenotype(nbhd, N.Classifiers, N.FullPosMarkerStr,
+                                          nameMap = nameMap))
+    }
+
+    dat <- dat %>%
+           select(-C.FullPosMarkerStr, -C.Classifiers,
+                  -N.UUID, -N.FullPosMarkerStr, -N.Classifiers) %>%
+           gather(paste0("N.", nbhds), key = "NeighborhoodCellType", value = "Count") %>%
+           group_by_at(c("FOV", names(.)[grepl("C\\.", names(.))], "NeighborhoodCellType")) %>%
+           summarize(N.Count = sum(Count)) %>%
+           gather(paste0("C.", centers), key = "CenterCellType", value = "FITS") %>%
+           filter(FITS == 1) %>%
+           mutate(NeighborhoodCellType = gsub("^N\\.", "", NeighborhoodCellType),
+                  CenterCellType = gsub("^C\\.", "", CenterCellType)) %>%
+           select(FOV, C.UUID, CenterCellType, NeighborhoodCellType, N.Count)
+
+    ## QC
+    #test <- dat %>%
+    #        group_by(C.UUID, CenterCellType) %>%
+    #        summarize(NumNbhds = n()) %>%
+    #        filter(NumNbhds != length(nbhds))
+    #if(nrow(test) > 0){ warning("Some center cells do not have the correct number of neighborhoods!") }
+    #cuuids <- length(unique(dat$C.UUID))
+    #if(cuuids != numCenterCells){
+    #    stop("Final number of center cells does not match number of center cells in raw neighborhood data.")
+    #}
+
+    if(!is.null(outFile) && length(outFile) > 0){
+        log_debug(paste0("Saving to file: ", outFile))
+        saveRDS(dat, outFile)
+    }
+
+    dat
+}
 
 #' Format neighborhood counts table for statistical analyses
 #' 
@@ -595,7 +659,7 @@ getIDmap <- function(allQuestions, qPre = NULL, qNames = NULL){
 #' @param cellDiveID       CellDive_ID for which data should be formatted; default: All
 #' 
 #' @return  filtered & annotated neighborhood counts table
-formatNeighborhoodCounts <- function(nbhdCountsDir, annCells, cellDiveID = "All"){
+formatNeighborhoodCounts_OLD <- function(nbhdCountsDir, annCells, cellDiveID = "All"){
 
     ncFiles <- file.path(nbhdCountsDir, dir(nbhdCountsDir))
     if(tolower(cellDiveID) != "all"){ 

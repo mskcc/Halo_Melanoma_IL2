@@ -349,8 +349,7 @@ nbhdFractionCond <- function(centerA, nbhdA, centerB, nbhdB){
 #' @param max.fdr      maximum adjusted p.value to consider a condition 'Passed'
 #' @param min.or       minimum odds ratio to consider a condition 'Passed'
 #' @param  full fraction statistics table
-reportLogOdds <- function(fracDat, groupVar, calcUnit = "FOV_ID",
-                          max.fdr = 0.05, min.or = 2, fracCol = "Fraction"){
+reportLogOdds <- function(fracDat, groupVar, calcUnit = "FOV_ID", fracCol = "Fraction"){
 
     dat <- fracDat %>% mutate(CondTitle = fractionCond(Condition, Population)) 
 
@@ -365,21 +364,18 @@ reportLogOdds <- function(fracDat, groupVar, calcUnit = "FOV_ID",
     meds   <- dat %>% getGroupMedianFractions(groupVar, fracCol)
 
     ## compile report
-    counts %>%
-    left_join(meds, by = intersect(names(.), names(meds))) %>%
-    left_join(stats, by = intersect(names(.), names(stats))) %>%
-    fixPvals(., paste(unique(dat[[groupVar]]), "median fraction")) %>%
-    mutate(`Fraction Passed` = ifelse(`adjusted p.value` < max.fdr &
-                                      abs(`log(Odds Ratio)`) > log(min.or),
-                                          "X", "")) %>%
-    select(`Fraction Passed`, `Cell State ID`, `Cell State` = Condition, Population,
-           `Cell State total cell count`, `Population total cell count`,
-           contains("median fraction"),
-           `log(Odds Ratio)`, `Odds Ratio`, `Inverse Odds Ratio`,
-           everything()) %>%
-           select(-CondTitle) %>%
-           arrange(as.numeric(`Cell State ID`)) %>%
-           ungroup()
+    report <- counts %>%
+              left_join(meds, by = intersect(names(.), names(meds))) %>%
+              left_join(stats, by = intersect(names(.), names(stats))) %>%
+              fixPvals(., paste(unique(dat[[groupVar]]), "median fraction")) %>%
+              select(`Cell State ID`, `Cell State` = Condition, Population,
+                     `Cell State total cell count`, `Population total cell count`,
+                     contains("median fraction"),
+                     `log(Odds Ratio)`, `Odds Ratio`, `Inverse Odds Ratio`,
+                     everything()) %>%
+              select(-CondTitle) %>%
+              arrange(as.numeric(`Cell State ID`)) %>%
+              ungroup()
 
 }
 
@@ -480,8 +476,7 @@ removeDuplicateRows <- function(dat, uniqueCols){
 #' 
 #' @return tibble of density stats including mean densities per group, fold changes, confidence intervals,
 #'         p values and FDRs for all conditions
-reportDensityStats <- function(denDat, allSamples, groupVar, calcUnit = "FOV_ID", 
-                               max.fdr = 0.05, min.fc = 2){
+reportDensityStats <- function(denDat, allSamples, groupVar, calcUnit = "FOV_ID"){ 
 
     dat <- denDat %>% 
            rename(CondTitle = Population) %>%
@@ -502,11 +497,7 @@ reportDensityStats <- function(denDat, allSamples, groupVar, calcUnit = "FOV_ID"
     left_join(meds, by = intersect(names(.), names(meds))) %>%
     left_join(stats, by = intersect(names(.), names(stats))) %>%
     fixPvals(., paste(unique(dat[[groupVar]]), "median density")) %>%
-    mutate(`Density Passed` = ifelse(`adjusted p.value` < max.fdr &
-                                     abs(`log(Fold Change)`) > log(min.fc),
-                                         "X", "")) %>%
-    select(`Density Passed`, 
-           `Cell State ID`, 
+    select(`Cell State ID`, 
            `Cell State` = CondTitle, 
            `Cell State total cell count`, 
            `Total Area`, 
@@ -762,7 +753,7 @@ filterNeighborhoodLOreport <- function(res, filt){
 #' @param res   results table of log odds statistics
 #' @param filt  filter in list form including values for min.estimate, max.fdr and min.cell.count
 #' @return filtered results table
-filterLOreport <- function(res, filt){
+filterLOreport_OLD <- function(res, filt){
     res %>%
     filter(`Population total cell count` > filt$min.cell.count,
            (`Odds Ratio` > filt$min.estimate | `Inverse Odds Ratio` > filt$min.estimate),
@@ -777,7 +768,7 @@ filterLOreport <- function(res, filt){
 #' @param res   results table of density fold change and statistics
 #' @param filt  filter in list form including values for min.estimate, max.fdr and min.cell.count
 #' @return filtered results table
-filterDensityReport <- function(res, filt){
+filterDensityReport_OLD <- function(res, filt){
     res %>%
     filter(`Cell State total cell count` > filt$min.cell.count,
            (`Fold Change` > filt$min.estimate | `Inverse Fold Change` > filt$min.estimate),
@@ -785,6 +776,39 @@ filterDensityReport <- function(res, filt){
            !duplicated(`Cell State`)) %>%
     arrange(desc(abs(`log(Fold Change)`)), `Density adjusted p.value`)
 }
+
+filterLOreport <- function(report, min.subpop.count = 300, min.pop.count = 1000,
+                           min.median.frac.diff = 0.1, max.fdr = 0.05){
+
+    report %>%
+    bioFilter(calc = "fractions",              
+              min.subpop.count = min.subpop.count,
+              min.pop.count    = min.pop.count,
+              min.median.diff  = min.median.frac.diff,
+              max.fdr          = max.fdr,
+              subpop.col       = "Cell State total cell count",               
+              pop.col          = "Population total cell count",               
+              fdr.col          = "adjusted p.value",               
+              median.cols      = names(report)[grepl("median", names(report))])
+
+}
+
+filterFCreport <- function(report, min.subpop.count = 300, max.fdr = 0.05,
+                           min.median.frac.diff = 0.1){
+
+    report %>%
+    bioFilter(calc = "densities",              
+              min.subpop.count = min.subpop.count,
+              min.pop.count    = 0,
+              min.median.diff  = min.median.frac.diff,
+              max.fdr          = max.fdr,
+              subpop.col       = "Cell State total cell count",               
+              pop.col          = "Population total cell count",               
+              fdr.col          = "adjusted p.value",               
+              median.cols      = names(report)[grepl("median", names(report))])
+
+}
+
 
 #' Filter neighborhood average counts statistics
 #' 
@@ -1151,12 +1175,19 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
     if("fractions" %in% names(allAnalyses) && resGood(qDat, "fractions")){
         log_info("Running fractions stats")
         fltr <- filtList$fractions
-        lo   <- reportLogOdds(qDat$fractions, groupVar, calcUnit = calcUnit,
-                              max.fdr = fltr$max.fdr, min.or = fltr$min.estimate)
-        lof  <- lo %>% 
-                filter(`Fraction Passed` == "X") %>% 
-                select(-`Fraction Passed`) %>%
+        lo   <- reportLogOdds(qDat$fractions, groupVar, calcUnit = calcUnit)
+        lof  <- lo %>%
+                filterLOreport(min.subpop.count     = fltr$minimum_subpopulation_count,
+                               min.pop.count        = fltr$minimum_population_count,
+                               min.median.frac.diff = fltr$minimum_median_difference,
+                               max.fdr              = fltr$fdr_cutoff) %>% 
                 arrange(desc(abs(`log(Odds Ratio)`)), `adjusted p.value`)
+
+        lo <- lo %>%
+              mutate(`Fraction Passed` = 
+                       ifelse(`Cell State ID` %in% lof$`Cell State ID`, 
+                                "X", "")) %>%
+              select(`Fraction Passed`, everything())
 
         qRes$fractions_complete <- lo
         qRes[[paste0("fractions_", filtName)]] <- lof
@@ -1171,11 +1202,16 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
         log_info("Running density stats")
         fltr    <- filtList$densities
         den     <- reportDensityStats(qDat$densities, allSmps, groupVar, calcUnit = calcUnit) 
-        denf    <- den %>% 
-                   filter(`Density Passed` == "X") %>% 
-                   select(-`Density Passed`) %>%
+        denf    <- den %>%
+                   filterFCreport(min.subpop.count     = fltr$minimum_subpopulation_count,
+                                  min.median.frac.diff = fltr$minimum_median_difference,
+                                  max.fdr              = fltr$fdr_cutoff) %>% 
                    arrange(desc(abs(`log(Fold Change)`)), `adjusted p.value`)
 
+        den <- den %>%
+               mutate(`Density Passed` = 
+                        ifelse(`Cell State ID` %in% denf$`Cell State ID`, 
+                                "X", ""))
         qRes$densities_complete <- den
         qRes[[paste0("densities_", filtName)]] <- denf
     } else {
@@ -1244,10 +1280,10 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
                       full_join(den2, by = intersect(names(lo2), names(den2))) %>% 
                       select(any_of(c("Fraction Passed", 
                                       "Density Passed",
-                                    "Cell State ID", 
-                                    "Cell State", 
-                                    "Population",
-                                    names(.)))) %>%
+                                      "Cell State ID", 
+                                      "Cell State", 
+                                      "Population",
+                                      names(.)))) %>%
                       arrange(as.numeric(`Cell State ID`))
         qRes$densities_complete <- NULL
     }
@@ -1264,8 +1300,12 @@ compareSampleGroups <- function(question, dat, sampAnn, allAnalyses, markers, me
         filtTbl <- filtTbl %>%
                    bind_rows(filtList[[f]] %>% as_tibble() %>% mutate(Calculation = f))
     }
-    filtTbl <- filtTbl %>% gather(1:3, key='filter', value='value') %>% spread(Calculation, value, fill=0)
-
+    filtTbl <- filtTbl %>% gather(1:3, key='filter', value='value') %>% spread(Calculation, value, fill=0) %>%
+               select(filter, everything()) %>%
+               mutate(densities = ifelse(filter == "minimum_median_difference", 
+                                           paste0(densities*100, "%"), densities), 
+                      fractions = ifelse(filter == "minimum_median_difference",
+                                           paste0(fractions*100, "%"), fractions))
     qRes[[filtName]] <- filtTbl
 
     ###
@@ -1331,17 +1371,21 @@ bioFilter <- function(dat, calc = "fractions",
                       pop.col = 'Population total cell count',
                       fdr.col = 'adjusted p.val', median.cols = NULL){
 
-    dat <- dat %>%
-           filter(!!as.name(subpop.col) >= min.subpop.count,
-                  !!as.name(pop.col) >= min.pop.count,
-                  !!as.name(fdr.col) < max.fdr)
     if(calc == "fractions"){
-         return(dat %>%
-                filter(abs(!!as.name(median.cols[2]) - !!as.name(median.cols[1])) >= min.median.diff))
+        return(dat %>%
+               filter(!!as.name(subpop.col) >= min.subpop.count,
+                      !!as.name(pop.col) >= min.pop.count,
+                      !!as.name(fdr.col) < max.fdr, 
+                      abs(!!as.name(median.cols[2]) - !!as.name(median.cols[1])) >= min.median.diff)) 
     } else if(calc == "densities"){
-         return(dat %>%
-                filter(abs((!!as.name(median.cols[2]) - !!as.name(median.cols[1]))/!!as.name(median.cols[2])) >= min.median.diff))
+        return(dat %>%
+               filter(!!as.name(subpop.col) >= min.subpop.count,
+                      !!as.name(fdr.col) < max.fdr,
+                      abs((!!as.name(median.cols[2]) - 
+                            !!as.name(median.cols[1]))/!!as.name(median.cols[2])) >= 
+                              min.median.diff))
     }
+
     msg <- paste0("Unrecognized calc: [", calc, "]")
     log_error(msg)
     stop(msg)

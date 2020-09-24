@@ -96,6 +96,9 @@ args <- processCMD(commandArgs(asValue=TRUE), list(), minReq, usage)
 ##   CONFIGURE & INITIALIZE DATA ##
 ###################################
 cfg <- resolveConfig(args, read_yaml(args$plot_color_file), read_yaml(args$figure_config_file))
+if(!is.null(cfg$plot_calculation)){ 
+    cfg$calculations <- cfg$calculations[cfg$plot_calculation]
+}
 
 logParams(cfg, used)
 
@@ -167,6 +170,7 @@ for(calc in names(cfg$calculations)){
                                       statsFilters   = cfg$bio_filter, 
                                       facetOrder     = cfg$facet_order, 
                                       popOrder       = facetOrder$Tag, 
+                                      idOrder        = ids,
                                       orderBy        = cfg$calculations[[calc]]$effect_col, 
                                       facets         = cfg$calculations[[calc]]$y_facets, 
                                       nbhdCounts     = stDat$nbhdCounts, 
@@ -180,10 +184,15 @@ for(calc in names(cfg$calculations)){
             next
         }
 
-        openxlsx::write.xlsx(plotDat, file.path(cfg$statistics_detail_dir, paste(q, calc, "detail.xlsx", sep="_"))) 
+        openxlsx::write.xlsx(plotDat, 
+                             file.path(cfg$statistics_detail_dir, 
+                                       paste(q, calc, "detail.xlsx", sep="_"))) 
 
         clrKeys     <- gsub(" \\(.*", "", levels(plotDat$fovVals$GroupLabel))
         clrs        <- cfg$clinical_colors[clrKeys]
+        clrs[clrs == "#66CD00"] <- "#009ed8"  ## green to blue
+        clrs[clrs == "#C80000"] <- "#ff8a30"  ## red to orange
+
         names(clrs) <- levels(plotDat$fovVals$GroupLabel)
 
         pdfHeight <- (0.10 * nrow(plotDat$labels)) + 2.5
@@ -205,7 +214,8 @@ for(calc in names(cfg$calculations)){
                                      facetY      = cfg$calculations[[calc]]$y_facets,
                                      fontsize    = 12,
                                      spacerColor = "#e0e0e0",
-                                     rel_widths  = rel_widths[[calc]])
+                                     rel_widths  = rel_widths[[calc]], 
+                                     stripWidth = unit(4,"cm"))
 
             log_info(paste0("  Saving figure to file: ", outPDF))
             ggsave(p, height = pdfHeight, width = pdfWidth, units = "in",

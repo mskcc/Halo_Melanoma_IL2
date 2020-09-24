@@ -84,7 +84,7 @@ getStatsDetailData <- function(statsFile, sampAnn, annCells, question, conds,
                                calcUnit = "FOV_ID", calculation = "fractions", 
                                calcColumn = "Fraction", cellStateIDs = NULL,
                                statsFilters = NULL, facetOrder = NULL, popOrder = NULL, 
-                               orderBy = "Odds Ratio", facets = NULL, 
+                               orderBy = "Odds Ratio", facets = NULL, idOrder = NULL, 
                                nbhdCounts = NULL, tumorNbhdCells = NULL){
 
     ## get all stats results
@@ -104,22 +104,21 @@ getStatsDetailData <- function(statsFile, sampAnn, annCells, question, conds,
 
     labs <- formatConditionsForPlotting(conds, c2p, calculation, cellTypes, 
                                         statsFile = statsFile, sheet = sheetName, 
-                                        facetY = facets, orderBy = orderBy,
+                                        facetY = facets, orderBy = orderBy, idOrder = idOrder,
                                         facetOrder = facetOrder, popOrder = popOrder)
 
     stats <- formatStatsForPlottingEffects(statsFile, calculation, calcColumn, conds,
                                            c2p, sheet = sheetName, facetY = facets,
                                            cellTypes = cellTypes, facetOrder = facetOrder,
-                                           popOrder = popOrder, orderBy = orderBy)
+                                           popOrder = popOrder, orderBy = orderBy, idOrder = idOrder)
 
     fovDat <- formatFOVdataForPlottingDetail(question, sGrps, annCells, c2p, conds, 
                                              analyses, calculation, calcColumn, markers,
                                              metricsDir, calcUnit = calcUnit, cellTypes = cellTypes,
                                              nbhdCounts = nbhdCounts, tumorNbhdCells = tumorNbhdCells,
                                              facetY = facets, facetOrder = facetOrder,
-                                             popOrder = popOrder, orderBy = orderBy,
+                                             popOrder = popOrder, orderBy = orderBy, idOrder = idOrder,
                                              statsFile = statsFile, sheet = sheetName)
-print("finished")
     list(labels = labs, stats = stats, fovVals = fovDat) 
 }
 
@@ -132,6 +131,27 @@ print("finished")
 #' 
 #' @return ggplot theme object
 statsDetailTheme <- function(fontsize = 12){
+    theme(text                = element_text(size = fontsize, color = "black"),#, family = fontFam),
+          axis.line.y         = element_blank(),
+          axis.ticks.y        = element_blank(),
+          axis.text.y         = element_blank(),
+          axis.title.y        = element_blank(),
+          axis.line.x         = element_line(size = 0.25),
+          axis.text.x         = element_text(size = fontsize, color = "black"),
+          axis.title.x.top    = element_text(size = fontsize, color = "black"),
+          axis.title.x.bottom = element_blank(),
+          panel.grid.major    = element_blank(),
+          panel.grid.minor    = element_blank(),
+          plot.background     = element_rect(fill = "transparent", color = NA),
+          legend.key.height   = unit(5,"mm"),
+          legend.key.width    = unit(3,"mm"),
+          legend.position     = "top",
+          legend.direction    = "vertical",
+          legend.text         = element_text(size = fontsize, color = "black"),
+          plot.margin         = margin(0,0,0,0))
+}
+
+questionFigureTheme <- function(fontsize = 12, borderColor = "#f0f0f0"){
     theme(text                = element_text(size = fontsize, color = "black"),#, family = fontFam),
           axis.line.y         = element_blank(),
           axis.ticks.y        = element_blank(),
@@ -309,6 +329,11 @@ addFacetSpacerRows <- function(dat, facetY, xCol = "Column", yCol = "y", bgColor
             mutate(col = bgColor, !!as.name(yCol) := 1, labelY = 0) %>%
             formatForStripedBackground(colors = rep(bgColor, 2))
 
+    if(nrow(fcts) == 0){
+        dat[[yCol]] <- factor(dat[[yCol]], levels = sort(unique(dat[[yCol]])))
+        return(dat)
+    }
+
     if(length(facetY) > 1){
         for(f in facetY[-1]){
             fcts <- fcts %>% mutate(!!as.name(f) := "")
@@ -389,11 +414,11 @@ plotQuestionResults <- function(dat, stats, conditions, clrs, groupVar, calcType
                                 yNudge=0.1, facetY = "Cell_type", fontsize = 8, spacerColor = "#D8D8D8",
                                 stripeBG = TRUE, bgColor = "white", stripeColor = "#f0f0f0",
                                 comparisonData = NULL, compCol = NULL, keepLegend = T, compFill = "Value",
-                                rel_widths = c(1, 0.7, 0.6)){
+                                rel_widths = c(1, 0.7, 0.6), stripWidth = unit(2,"cm")){
 
     condTbl   <- conditionTable(conditions, cellTypes, facetY = facetY, fontsize = fontsize,
                                 stripeBG = stripeBG, bgColor = bgColor, stripeColor = stripeColor,
-                                spacerColor = spacerColor, calcType = calcType)
+                                spacerColor = spacerColor, calcType = calcType, stripWidth = stripWidth)
 
     detPlot   <- plotQuestionDetail(dat, groupVar, clrs, xVar = xVar, yVar = yVar, yNudge = yNudge,
                                     facetY = facetY, fontsize = fontsize,
@@ -482,6 +507,7 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
             geom_hline(yintercept = Inf, size = 0.5, color = "darkgray") +
             geom_hline(yintercept = -Inf, size = 0.5, color = "darkgray") +
             geom_vline(xintercept = -Inf, size = .5, color = "darkgray") +
+            geom_vline(xintercept = Inf, size = .5, color = "darkgray") +
             scale_y_discrete(expand = c(0, 0)) +
             scale_fill_manual(values = clrs, guide=FALSE) +
             scale_color_manual(values = clrs, guide = FALSE) +
@@ -489,24 +515,31 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
             theme(axis.text.x = element_text(size = fontsize, hjust = 0.5),
                   axis.ticks.x = element_blank(),
                   axis.title.x = element_blank(),
-                  plot.margin = margin(r = -0.4, t = 3, b = 0.5, l = 0.5, "cm"))
+                  #plot.margin = margin(r = 0, t = 3, b = 0.5, l = 0.5, "cm"))
+                  plot.margin = margin(r = 0.5, t = 3, b = 0.5, l = 0.5, "cm"))
 
    if(!is.null(facetY)){
        if(length(facetY) == 1 && facetY == "Center"){
            lbls <- lbls + 
                    facet_grid(as.formula(paste(facetY, " ~ .")),
                               scales = "free", space = "free", switch = "y")
-       } else {
+       } else if(facetY == c("Cell_type", "Tag")) {
            lbls <- lbls +
                    facet_grid(as.formula(paste(paste(c(facetY,"Abbrev","Subscript"), collapse=" + "), "~ .")),
                               scales = "free", space = "free", switch = "y",
                               labeller = label_bquote(.(Abbrev)[.(Subscript)])) 
+       } else {
+           lbls <- lbls + 
+                   facet_grid(as.formula(paste0(paste(facetY, collapse = " + "), "~ .")),
+                              scales = "free", space = "free", switch = "y",
+                              labeller = label_bquote(.(Phenotype)))
        }
        lbls <- lbls +
                theme(panel.spacing = unit(0, "lines"),
                      strip.placement = "outside",
-                     strip.text.y.left = element_text(size = fontsize, angle = 0, margin = margin(0,0.75,0,0,"mm")),
-                     strip.background = element_rect(fill = "white", color = "white"))
+                     strip.text.y.left = element_text(size = fontsize, angle = 0, 
+                                                      margin = margin(0,0.75,0,0,"mm")),
+                     strip.background = element_blank())
     }
 
     if(any(is.na(tmp$Value))){
@@ -517,7 +550,7 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
     }
 
     ## add labels one facet at a time to prevent them from being added to all facets
-    facets <- tmp %>% select(all_of(facetY)) %>% unique() %>% filter(Tag != "")
+    facets <- tmp %>% select(all_of(facetY)) %>% unique() #%>% filter(Tag != "")
     for(i in 1:nrow(facets)){
         fct <- facets[i,] %>% left_join(tmp, by = facetY)
         for(rw in 1:nrow(fct)){
@@ -533,7 +566,7 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
                     paste0(paste(rep(" ", 42), collapse = ""), "Subpopulation | Population"),
                     paste0(paste(rep(" ", 16), collapse = ""), "Population"))
     lbls <- lbls + 
-            scale_x_continuous(breaks = c(0,1), limits = c(0,1.05), expand = c(0.01,0.01),
+            scale_x_continuous(breaks = c(0,1), limits = c(0,1.01), expand = c(0.01, 0),#expand = c(0.01,0.01),
                                labels = c(title, "ID    "),
                                sec.axis = dup_axis()) +
             theme(axis.title.x = element_blank(),
@@ -544,7 +577,8 @@ conditionTable <- function(dat, cellTypes, facetY = NULL, stripeBG = TRUE, bgCol
         lbls <- lbls +
                 theme(axis.text.x.top = element_blank(),
                       axis.ticks.x.top = element_blank(),
-                      plot.margin = margin(r = -0.4, t = 0.5, b = 0.5, l = 0.5, "cm"))
+                      plot.margin = margin(r = 0.5, t = 0.5, b = 0.5, l = 0.5, "cm")) 
+#                      plot.margin = margin(r = -0.4, t = 0.5, b = 0.5, l = 0.5, "cm"))
     }
     if(hideXaxisBottom){ 
         lbls <- lbls + 
@@ -682,7 +716,7 @@ plotQuestionDetail <- function(points, groupVar, clrs, xVar = "Fraction", yVar =
                legend.justification = c(0.5,0),
                panel.background = element_blank(),
                panel.spacing = unit(0,"lines"),
-               plot.margin = margin(l = 0, r = -0.8, t=3, b=0.5, unit = "cm")) +
+               plot.margin = margin(l = 0, r = -1.2, t=3, b=0.5, unit = "cm")) +
          guides(shape = guide_legend(groupVar), 
                 linetype = guide_legend(groupVar), 
                 color = guide_legend(groupVar))
@@ -697,7 +731,9 @@ plotQuestionDetail <- function(points, groupVar, clrs, xVar = "Fraction", yVar =
     if(!is.null(facetY)){
         p <- p +
              facet_grid(as.formula(paste(paste0(facetY,collapse="+"), " ~ .")), 
-                        scales="free", space="free") 
+                        scales="free", space="free") #+
+#             theme(strip.background = element_blank(),
+#                   strip.text.y = element_blank()) 
     }
 
     if(!keepLegend){ p <- p + theme(legend.position = "none") }
@@ -811,6 +847,7 @@ plotEffectSize <- function(dat, effectCol="Odds Ratio", yVar="Condition",
          geom_hline(yintercept = Inf, size = .5, color = "darkgray") +
          geom_hline(yintercept = -Inf, size = .5, color = "darkgray") +
          geom_vline(xintercept = Inf, size = .5, color = "darkgray") +
+         geom_vline(xintercept = -Inf, size = 0.5, color = "darkgray") +
          geom_vline(xintercept = 1, size=0.25) +
          geom_point(aes_string(add_ticks(effectCol), y = "y2", color = colorBy), size=2, show.legend = T) +
          geom_segment(aes_string(x = "CI.low", xend = "CI.high", y = "y2", yend = "y2", color = colorBy), 
@@ -837,7 +874,9 @@ plotEffectSize <- function(dat, effectCol="Odds Ratio", yVar="Condition",
                  legend.background = element_rect(color = "transparent", fill = "transparent"),
                  panel.background = element_blank(),
                  panel.spacing = unit(0,"lines"),
-                 plot.margin = margin(l = -0.5, r = -1.1, t=3, b=0.5, unit = "cm")) 
+                 plot.margin = margin(l = -0.1, r = -0.2, t = 3, b = 0.5, unit = "cm"))
+                 #plot.margin = margin(l = -0.2, r = 1, t=3, b=0.5, unit = "cm"))
+                 
 
     if(colorBy == "signif"){
          p <- p +
@@ -866,7 +905,8 @@ plotEffectSize <- function(dat, effectCol="Odds Ratio", yVar="Condition",
         p <- p + 
              theme(axis.text.x.top = element_blank(), 
                    axis.ticks.x.top = element_blank(),
-                   plot.margin = margin(l = -0.5, r = -1.1, t=0.5, b=0.5, unit = "cm")) 
+                   plot.margin = margin(l = -0.1, r = -0.2, t = 0.5, b = 0.5, unit = "cm"))
+                   #plot.margin = margin(l = -0.2, r = 1, t=0.5, b=0.5, unit = "cm"))
     }
     if(hideXaxisBottom){ p <- p + theme(axis.text.x.bottom = element_blank(), axis.ticks.x.bottom = element_blank()) }
     if(hideXtitle){ p <- p + theme(axis.title.x = element_blank(), axis.title.x.top = element_blank()) }
@@ -975,7 +1015,8 @@ plotComparisonHeatmap <- function(compDat, compCol, yVar = "y", facetY = NULL, f
                        height = tileH, width = tileW) +
              geom_point(data = dat %>% filter(!!as.name(fill) != "opposite"),
                        aes(shape = signif), stat = "identity", color = "black", size = 1) +
-             scale_fill_manual(values = clrs, labels = legendLabels) 
+             scale_fill_manual(values = clrs[c('up','down','opposite')], labels = legendLabels,
+                               breaks = names(clrs), drop = FALSE) 
     }
 
     p <- p +
@@ -1001,7 +1042,9 @@ plotComparisonHeatmap <- function(compDat, compCol, yVar = "y", facetY = NULL, f
                legend.title = element_blank(),
                strip.text = element_text(color = "transparent"),
                panel.spacing = unit(0, "lines"),
-               plot.margin = margin(l = -0.2, r = 1, unit = "cm"), 
+               plot.margin = margin(l = 0, r = -0.7, t=3, b=0.5, unit = "cm"),
+               #plot.margin = margin(l = -0.5, r = -1.1, t=3, b=0.5, unit = "cm"),
+               #plot.margin = margin(l = -0.2, r = -1.1, t=3, b=0.5, unit = "cm"), 
                axis.text.x.top = element_text(hjust = 0, vjust = 0.5, angle = 90),
                axis.text.x.bottom = element_text(hjust = 1, vjust = 0.5, angle = 90)) 
 
@@ -1026,7 +1069,8 @@ plotComparisonHeatmap <- function(compDat, compCol, yVar = "y", facetY = NULL, f
         p <- p + 
              theme(axis.text.x.top = element_blank(), 
                    axis.ticks.x.top = element_blank(),
-                   plot.margin = margin(l = -0.2, r = 1, t = 0.5, b = 0.5, unit = "cm")) 
+                   #plot.margin = margin(l = -0.5, r = -1.1, t=0.5, b=0.5, unit = "cm"))
+                   plot.margin = margin(l = 0, r = -0.7, t = 0.5, b = 0.5, unit = "cm")) 
     }
     if(hideXaxisBottom){ p <- p + theme(axis.text.x.bottom = element_blank(), axis.ticks.x.bottom = element_blank()) }
     if(hideXtitle){ p <- p + theme(axis.title.x = element_blank(), axis.title.x.top = element_blank()) }
@@ -1237,24 +1281,121 @@ conditionsAligned <- function(labs, stats, indiv, meds = NULL, points = NULL){
     TRUE
 }
 
+plotMedianBars <- function(dat, clrs, fillCol = "Group", xVar = "Group", yVar = "y", title = "Median Fraction",
+                           facetY = NULL, stripeBG = TRUE, bgColor = "white", stripeColor = "#f0f0f0",
+                           fontsize = 12, spacerColor = "#d8d8d8", keepLegend = TRUE,
+                           hideXaxisTop = FALSE, hideXaxisBottom = FALSE, hideXtitle = FALSE){
+
+    if(!stripeBG){ stripeColor <- bgColor }
+
+    resTbl <- dat %>%
+              formatForStripedBackground(colors = c(bgColor, stripeColor), yVar = yVar) %>%
+              addFacetSpacerRows(facetY, xCol = NULL, yCol = yVar, bgColor = spacerColor)
+    if(!is.null(facetY)){
+        resTbl <- resTbl %>%
+                  filter_at(vars(facetY[1]), all_vars(!is.na(.)))
+    }
+
+    bgClrs <- c(bgColor, stripeColor, spacerColor)
+    names(bgClrs) <- bgClrs
+
+    allClrs <- c(clrs, bgClrs)
+
+    nr <- length(unique(resTbl$`Cell State ID`))
+    legendY <- 1 + (0.03 * (100/nr))
+
+    xMax <- max(as.numeric(resTbl[[xVar]]), na.rm=T) + 0.75
+
+    p <- ggplot(data = resTbl, aes_string(x = xVar, y = yVar)) +
+         geom_rect(aes(xmin = 0.25, xmax = xMax, ymin = ystart, ymax=yend,
+                       fill = col, color = col), size = 0.25, show.legend = F) +
+         geom_rect(aes(xmin = as.numeric(x) - 0.45, xmax = as.numeric(x) + 0.45,
+                       ymin = bottom, ymax = top, fill = !!as.name(fillCol))) +
+         geom_hline(yintercept = 0.5, size = 0.5, color = "darkgray") +
+         geom_hline(yintercept = Inf, size = 0.5, color = "darkgray") +
+         geom_vline(xintercept = 0.25, size = 0.5, color = "darkgray") +
+         geom_vline(xintercept = xMax, size = 0.5, color = "darkgray") +
+         xlab(gsub(" ", "\n", title)) +
+         scale_color_manual(values = allClrs, guide = FALSE) +
+         scale_fill_manual(name = "", values = allClrs, breaks = names(clrs)) +
+         scale_y_discrete(expand = c(0,0)) +
+         scale_x_continuous(expand = c(0, 0), limits = c(0.25, xMax), sec.axis = dup_axis()) +
+         theme_minimal() +
+         questionFigureTheme(fontsize = fontsize, borderColor = "transparent") +
+         theme(legend.direction = "vertical",
+               legend.position = c(0,legendY),
+               legend.justification = c(0,0),
+               legend.text = element_text(size = fontsize, hjust = 1),
+               legend.title = element_text(size = fontsize, hjust = 1),
+               legend.key = element_rect(color = "transparent", fill = "white"),
+               legend.key.size = unit(0.5, "cm"),
+               legend.key.width = unit(0.5,"cm"),
+               legend.background = element_rect(color = "transparent", fill = "transparent"),
+               panel.background = element_blank(),
+               panel.spacing = unit(0,"lines"),
+               axis.text.y.left = element_blank(),
+               axis.title.y = element_blank(),
+               axis.text.x = element_blank(),
+               axis.text.x.top = element_blank(),
+               axis.title.x.bottom = element_blank(),
+               axis.title.x.top = element_text(size = fontsize, hjust = 0.5),
+               plot.margin = margin(l = -1.15, r = 0.25, t = 3, b = 0.5, unit = "cm"))
+               #plot.margin = margin(l = -0.2, r = -1.1, t = 3, b = 0.5, unit = "cm"))
+               #plot.margin = margin(l = -0.2, r = -0.83, t=3, b=0.5, unit = "cm"))
+
+
+    if(!is.null(facetY)){
+        p <- p +
+             facet_grid(as.formula(paste(paste0(facetY,collapse="+"), " ~ .")), space = "free_y", scales = "free_y") +
+             theme(strip.background = element_blank(),
+                   strip.text = element_text(color = "transparent"))
+    }
+
+    ## shade space between facets
+    if(any(!is.na(resTbl$labelY) && resTbl$labelY == 0)){
+        p <- p +
+             geom_rect(data = resTbl %>% filter(labelY == 0),
+                       aes(xmin = 0.25, xmax = xMax, ymin = ystart, ymax = yend),
+                       fill = spacerColor)
+    }
+
+    if(!keepLegend){ p <- p + theme(legend.position = "none") }
+    if(hideXaxisTop){
+        p <- p +
+             theme(axis.text.x.top = element_blank(),
+                   axis.ticks.x.top = element_blank(),
+                   plot.margin = margin(l = -1.15, r = 0.25, t = 0.5, b = 0.5, unit = "cm"))
+                   #plot.margin = margin(l = -0.2, r = -1.1, t = 0.5, b = 0.5, unit = "cm"))
+                   #plot.margin = margin(l = -0.2, r = -0.83, t=0.5, b=0.5, unit = "cm"))
+    }
+    if(hideXaxisBottom){ p <- p + theme(axis.text.x.bottom = element_blank(), axis.ticks.x.bottom = element_blank()) }
+    if(hideXtitle){ p <- p + theme(axis.title.x = element_blank(), axis.title.x.top = element_blank()) }
+
+    gt <- ggplot_gtable(ggplot_build(p))
+    gt$layout$clip[grep("panel",gt$layout$name)] <- "off"
+
+    gt
+
+}
+
 
 plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet, comps, calcType, cellTypes, conds,
                                            idMap, effectCol = "Odds Ratio", effectAbb = "OR", calcCol = "Fraction",
                                            facetY = NULL, facetOrder = NULL, popOrder = NULL, orderBy = NULL,
-                                           xVar = "Sample_ID", xOrder = NULL){
+                                           idOrder = NULL, xVar = "Sample_ID", xOrder = NULL, 
+                                           stripWidth = unit(2,"cm")){
 
-    idOrder <- NULL
     figs <- list()
     pdfHeight <- 0
     rel_heights <- c()
-    widths <- list(fractions = c(2, 0.4, 0.8, 1.2),
-                   densities = c(1.6, 0.4, 0.8, 1.2))
+    widths <- list(fractions = c(2, 0.8, 1.0, 0.4),
+                   densities = c(1.6, 0.8, 1, 0.4))
 
     comp1 <- comps$comp1$name
     comp2 <- comps$comp2$name
 
     ## create two separate plots for conditions that are up/up or down/down and opposite directions
-    for(type in c("same", "opposite")){
+    for(type in c("up", "down", "opposite")){
         log_debug(paste("Comparison Type: comparison 1 and comparison 2 in", toupper(type), "direction"))
 
         excl <- dat %>%
@@ -1262,16 +1403,20 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                        !!as.name(paste(comp2, "Overall", effectAbb)) == 1)
         log_debug(paste("        [FILTER] removed conditions where at least one effect == 1:", numConds(excl)))
 
-        if(type == "same"){
+        if(type == "up"){
             c2p <- dat %>%
                    filter((!!as.name(paste(comp1, "Overall", effectAbb)) > 1 &
-                           !!as.name(paste(comp2, "Overall", effectAbb)) > 1) |
-                          (!!as.name(paste(comp1, "Overall", effectAbb)) < 1 &
-                             !!as.name(paste(comp2, "Overall", effectAbb)) < 1))  %>%
+                           !!as.name(paste(comp2, "Overall", effectAbb)) > 1)) %>% 
                    pull(`Cell State ID`)
             log_debug(paste("        [PLOT] conditions with", effectAbb, ">1 in both",
                                      comp1, "and", comp2, ":", length(c2p)))
-
+        } else if(type == "down"){
+            c2p <- dat %>%
+                   filter((!!as.name(paste(comp1, "Overall", effectAbb)) < 1 &
+                           !!as.name(paste(comp2, "Overall", effectAbb)) < 1)) %>% 
+                   pull(`Cell State ID`)
+            log_debug(paste("        [PLOT] conditions with", effectAbb, "<1 in both",
+                                     comp1, "and", comp2, ":", length(c2p)))
         } else {
             c2p <- dat %>%
                    filter((!!as.name(paste(comp1, "Overall", effectAbb)) > 1 &
@@ -1285,18 +1430,21 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
 
         ### CONDITION LABELLING
         ## for labeling, just use any single stats file (they are all the same)
-        idOrder <- NULL
         statsFile <- statsFiles[grepl(paste0(comps$comp1$question_number, ".xlsx"), statsFiles)]
 
+        log_debug("Formatting conditions")
         labs   <- formatConditionsForPlotting(conds, c2p, calcType, cellTypes, facetY = facetY, idOrder = idOrder,
                                               facetOrder = facetOrder, popOrder = popOrder, orderBy = orderBy,
                                               statsFile = statsFile, sheet = sheet)
-        idOrder <- labs %>%
-                   filter(Column == "Cell State ID") %>%
-                   select(Value, labelY) %>%
-                   pull(Value) %>%
-                   as.numeric %>% rev %>% unique
+        if(is.null(idOrder)){
+            idOrder <- labs %>%
+                       filter(Column == "Cell State ID") %>%
+                       select(Value, labelY) %>%
+                       pull(Value) %>%
+                       as.numeric %>% rev %>% unique
+        } 
 
+        log_debug("Getting effect sizes & CIs")
         ## get effect sizes & CIs for both overall comparsions
         allStats <- tibble()
         for(cmp in names(comps)){
@@ -1309,15 +1457,17 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                      mutate(CompGroup = comps[[cmp]]$name)
             allStats <- allStats %>% bind_rows(stats)
         }
-        insig <- which((allStats[[effectCol]] >= 1 & allStats$CI.low <= 1) |
-                       (allStats[[effectCol]] <= 1 & allStats$CI.high >= 1))
-        allStats$CompGroup[insig] <- "not significant"
+        allStats <- allStats %>%
+                    mutate(CompGroup = ifelse(`adjusted p.value` >= 0.05, "FDR >= 0.05", CompGroup))
+        allStats$CompGroup <- factor(allStats$CompGroup, levels = c("CR vs UT", "non-CR vs UT", "FDR >= 0.05"))
         layout <- allStats %>% select_at(c("Cell State ID", facetY, "labelY", "y")) %>% unique()
 
+        log_debug("Formatting medians")
         grpIdxs <- grep("_label", names(unlist(comps)))
         grps    <- unlist(comps)[grpIdxs] %>% unique
         allMeds <- formatMedians(dat, c2p, grps, calcCol, layout)
 
+        log_debug("Formatting individual level data")
         ## format heatmap of individual comparison "same" or "opposite" effect direction when 
         ## compared to the overall comparison
         indivDatT <- indivDat %>%
@@ -1330,13 +1480,13 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
 
         ## make figure
         clrs <- c('#32cd32', '#f5d000', 'darkgray')
-        names(clrs) <- c(comps$comp1$name, comps$comp2$name, 'not significant')
+        names(clrs) <- c(comps$comp1$name, comps$comp2$name, 'FDR >= 0.05')
 
         medClrs <- c("#32cd32", "#525253", "#f5d000")
         names(medClrs) <- c(comps$comp1$group_1_label,
                             comps$comp1$group_2_label,
                             comps$comp2$group_1_label)
-       log_info("Generating figure...")
+        log_info("Generating figure...")
 
         strpBG  <- TRUE
         bg <- "white"
@@ -1344,18 +1494,23 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
         spacer <- "#e0e0e0"
         fs <- 12
 
-        plotParams <- list("same" = list(hideXtitle = FALSE, hideXaxisTop = FALSE,
+        plotParams <- list("up" = list(hideXtitle = FALSE, hideXaxisTop = FALSE,
                                          hideXaxisBottom = TRUE, keepLegend = TRUE),
+                           "down" = list(hideXtitle = TRUE, hideXaxisTop = TRUE,
+                                          hideXaxisBottom = TRUE, keepLegend = FALSE),
                            "opposite" = list(hideXtitle = TRUE, hideXaxisTop = TRUE,
                                              hideXaxisBottom = FALSE, keepLegend = FALSE))
         pp <- plotParams[[type]]
 
         options(warn = -1)
+        log_debug("Making condition table")
         ## panel 1
         condTbl   <- conditionTable(labs, cellTypes, facetY = facetY, fontsize = fs,
                                     stripeBG = strpBG, bgColor = bg, stripeColor = stripe,
                                     spacerColor = spacer, calcType = calcType, hideXaxisTop = pp$hideXaxisTop,
-                                    hideXaxisBottom = pp$hideXaxisBottom)
+                                    hideXaxisBottom = pp$hideXaxisBottom, stripWidth = stripWidth)
+
+        log_debug("Making median bars")
         ## panel 2
         title = ifelse(calcType == "fractions", "Median Fraction Scaled", "Median Density Scaled")
         medians <- plotMedianBars(allMeds, medClrs, fillCol = "Group", xVar = "x", yVar = "y",
@@ -1363,6 +1518,8 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                                   bgColor = bg, stripeColor = stripe, spacerColor = spacer,
                                   keepLegend = pp$keepLegend, hideXtitle = pp$hideXtitle,
                                   hideXaxisTop = pp$hideXaxisTop, hideXaxisBottom = pp$hideXaxisBottom)
+
+        log_debug("Plotting effect sizes")
         ## panel 3
         allStats$CompGroup <- factor(allStats$CompGroup, levels = names(clrs))
         statPlot  <- plotEffectSize(allStats, clrs = clrs, colorBy = "CompGroup", fontsize = fs,
@@ -1371,38 +1528,43 @@ plotSeparateCohortVsIndividual <- function(dat, indivDat, cfg, statsFiles, sheet
                                     stripeColor = stripe, spacerColor = spacer, hideXtitle = pp$hideXtitle,
                                     hideXaxisTop = pp$hideXaxisTop, hideXaxisBottom = pp$hideXaxisBottom,
                                     keepLegend = pp$keepLegend)
+
+        log_debug("Plotting individual level data")
         ## panel 4
         ptPlot    <- plotComparisonHeatmap(indivDatT, "Sample_ID", yVar = "y", facetY = facetY,
                                            spacerColor = spacer, fill = "status", calcType = calcType,
                                            hideXtitle = pp$hideXtitle, hideXaxisTop = pp$hideXaxisTop,
                                            hideXaxisBottom = pp$hideXaxisBottom, keepLegend = pp$keepLegend)
 
+        log_debug("Matching panel heights")
         ## match all heights for proper alignment
         condAndStatList <- matchPanelHeights(condTbl, statPlot)
         condAndMedsList <- matchPanelHeights(condTbl, medians)
         statAndPtList   <- matchPanelHeights(condAndStatList[[1]], ptPlot)
 
-        plotList <- list(condAndStatList[[1]], condAndMedsList[[2]], condAndStatList[[2]], statAndPtList[[2]])
+        #plotList <- list(condAndStatList[[1]], statAndPtList[[2]], condAndMedsList[[2]], condAndStatList[[2]])
+        plotList <- list(condAndStatList[[1]], statAndPtList[[2]], condAndStatList[[2]], condAndMedsList[[2]])
         rel_widths <- widths[[calcType]]
 
+        log_debug("Creating plot grid")
         pg <- plot_grid(plotlist = plotList, align = 'hv', axis = 'bt', nrow = 1, rel_widths = rel_widths)
         figs[[type]] <- pg
-        exHeight <- ifelse(type == "same", 2.5, 0.9)
-        pdfHeight <- pdfHeight + (0.11 * nrow(labs)) + exHeight
+        exHeight <- switch(type,
+                           "up" = 2.3,
+                           "down" = 0.6,
+                           "opposite" = 0.8)
+
+        pdfHeight <- pdfHeight + (0.10 * nrow(labs)) + exHeight
         rel_heights <- c(rel_heights, (0.11 * nrow(labs)) + exHeight)
         log_debug(paste0("Relative heights: ", paste(rel_heights, collapse = ", ")))
         log_debug(paste0("PDF height: ", pdfHeight))
     }
     ### Plotting all passing data
-    pdfFile <- file.path(outDir, paste(comps$comp1$question_number, comps$comp2$question_number,
-                                       ct, "combined_detail_figure.pdf", sep="_"))
     pdfWidth <- 11.5
-
-    pdf(pdfFile, height = pdfHeight, width = pdfWidth, onefile=FALSE)
-    pg2 <- plot_grid(plotlist = figs, align = 'hv', axis = 'lr', ncol = 1, rel_heights = rel_heights)
-    grid.draw(pg2)
-    dev.off()
-    #options(warn = 0)
+    
+    list(pdfWidth = pdfWidth, 
+         pdfHeight = pdfHeight,
+         figure = plot_grid(plotlist = figs, align = 'hv', axis = 'lr', ncol = 1, rel_heights = rel_heights))
 }
  
 

@@ -87,7 +87,8 @@ setConditionOrder <- function(conds, ids, cellTypes, statsFile = NULL, sheet = N
     cnds <- conds %>%
             mutate(`Cell State ID` = as.numeric(`Cell State ID`)) %>%
             filter(`Cell State ID` %in% ids) %>%
-            select(`Cell State ID`, Condition, Population, Cell_type, Subtype) %>%
+            select(all_of(c("Cell State ID", "Condition", "Population")), 
+                   any_of(c("Cell_type", "Subtype", "Tag", facetY))) %>%
             mutate(Condition = formatMarkers(Condition),
                    Population = formatMarkers(Population)) %>%
             left_join(cellTypes %>% select(Cell_type, Subtype, Tag, Abbrev, Subscript),
