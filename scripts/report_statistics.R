@@ -113,7 +113,7 @@ stDat <- loadStudyData(cfg,
                        analyses = T, 
                        questions = T, 
                        cellsInTumorNeighborhood = T, 
-                       tmeSampleStatus = T) 
+                       tmeCellStatus = T) 
 
 stDat$analysisList <- stDat$analysisList[c("fractions", "densities")]
 

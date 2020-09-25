@@ -305,7 +305,7 @@ extractCT <- function(x) { gsub(",.*", "", x) }
 #' @return vector of classifiers of type [facetCol] corresponding to each one in [ct]
 getClassifier <- function(ct, cellTypes, facetCol){
     ctLvls <- c("Category", "Cell_type", "Subtype", "Tag")
-    celltypes <- cellTypes %>% select_at(ctLvls)
+    celltypes <- cellTypes %>% select(all_of(ctLvls))
     sapply(ct, function(x){
         catType <- celltypes %>%
                    filter_at(vars(ctLvls), any_vars(grepl(paste0("^",x,"$"), .))) %>%

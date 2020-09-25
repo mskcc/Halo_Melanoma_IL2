@@ -576,10 +576,10 @@ addTME <- function(annCells, tmeDir, assignmentLevel = "sample", questions = NUL
             mrkr <- gsub("microEnv\\.","",mrkrCol)
             annCells <- annCells %>%
                         left_join(tme %>%
-                        select_at(c("UUID", mrkrCol)) %>%
-                        rename_at(vars(mrkrCol),
-                        list(~(. = paste0(assignmentLevel, "_",mrkr)))),
-                      by = "UUID")
+                                  select(all_of(c("UUID", mrkrCol))) %>%
+                                  rename_at(all_of(mrkrCol),
+                                            list(~(. = paste0(assignmentLevel, "_",mrkr)))),
+                        by = "UUID")
         }
 
         annCells

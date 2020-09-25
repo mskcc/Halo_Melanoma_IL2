@@ -38,6 +38,16 @@ questions = pd.read_excel(qFile).QuestionNumber.unique().tolist()
 allMetrics = ['counts', 'fractions', 'densities', 'neighborhood_averages', 'neighborhood_mean_fractions']
 tumorRegions = ['infiltration', 'inside_interface', 'outside_interface']
 
+#
+## plots
+#
+plotCalcs = ['fractions', 'densities']
+plotExts = ['pdf', 'xlsx']
+
+
+##
+## check all sample meta data, cell type definitions and stats comparisons & conditions
+##
 rule validate_input:
     input:
         glob.glob(config['meta_dir'] + '/*.xlsx'),
@@ -49,9 +59,12 @@ rule validate_input:
     shell:
         "{Rpath}/Rscript {src}/scripts/validate_input.R --manifest {input}"
 
-
+##
+## parse all meta data, store in list and save to RDA file 
+## 
 rule compile_meta_data:
     input:
+        config['log_dir'] + "/INPUT_VALID",
         glob.glob(config['meta_dir'] + '/*.xlsx')
     output:
         config['meta_data_file']
@@ -62,7 +75,9 @@ rule compile_meta_data:
             " --manifest input/config/study_config.yaml " +
             " --meta_data_file " + config['meta_data_file']
 
-
+##
+## sort all phenotypes and cell fractions and assign a 'Cell State ID' to each one
+##
 rule index_conditions:
     input:
         conds_xlsx = config['statistics_conditions_file'],
@@ -77,7 +92,10 @@ rule index_conditions:
             " --annotation_config_file {input.annotation_config} " +
             " --statistics_conditions_index {output}" 
 
-
+##
+## convert rethresholded, marker level data to simplified cell level table
+## and assign all cell classifiers (phenotype labels like type, subtype, etc)
+##
 rule annotate_cells:
     input:
         meta_dir = config['meta_dir'],
@@ -99,7 +117,9 @@ rule annotate_cells:
             " --meta_dir {input.meta_dir} " +
             " --number_threads " + str(config['number_threads']) 
 
-
+##
+## create XLSX file of cell counts summarized by FOV, Sample, cell phenotype, etc.
+##
 rule summarize_cell_counts:
     input:
         meta_data_file = config['meta_data_file'],
@@ -118,7 +138,11 @@ rule summarize_cell_counts:
              " --meta_dir " + config['meta_dir'] +
              " --cell_type_counts_file {output}"
 
-
+##
+## calculate distance from each cell to the closest point on the tumor interface
+## (where applicable), bin cells into 10-micron intervals based on those distances
+## and calculate area of each bin in each FOV
+##
 rule calculate_interface_area:
     input:
         rules.compile_meta_data.output,
@@ -146,7 +170,9 @@ rule calculate_interface_area:
              " --meta_dir " + config['meta_dir'] +
              " --number_threads " + str(config['number_threads'])
 
-
+##
+## calculate total tissue area in each FOV
+##
 rule calculate_fov_area:
     input:
         rules.compile_meta_data.output,
@@ -169,7 +195,11 @@ rule calculate_fov_area:
              " --meta_dir " + config['meta_dir'] +
              " --number_threads " + str(config['number_threads'])
 
-
+##
+## calculate cell fractions, densities and neighborhood mean counts & fractions
+## for cell regions 'interface' (-360:360 microns), 'inside_interface' (-360:0 microns), 
+## 'outside_interface' (0:360 microns), per FOV and also per interface band in each FOV
+##
 rule calculate_interface_metrics:
     input:
         rules.compile_meta_data.output,
@@ -184,36 +214,8 @@ rule calculate_interface_metrics:
         tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
         tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
     output:
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda'),
-        protected(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda')
+        expand(config['metrics_dir'] + '/{region}/{{tumor}}_{calc}_per_FOV_ID.rda', region = tumorRegions, calc = allMetrics),
+        expand(config['metrics_dir'] + '/{region}/{{tumor}}_{calc}_per_FOV_ID__Band.rda', region = tumorRegions, calc = allMetrics) 
     resources:
         threads = int(config['number_threads']),
         mem = 32
@@ -238,7 +240,10 @@ rule calculate_interface_metrics:
              " --statistics_conditions_file {input.conditions} " +
              " --statistics_conditions_index " + config['statistics_conditions_index'] +
              " --tme_by_cell_dir " + config['tme_by_cell_dir']
-             
+  
+##
+## calculate total FOV cell fractions, densities and neighborhood mean counts & fractions
+##            
 rule calculate_fov_metrics:
     input:
         rules.compile_meta_data.output,
@@ -251,11 +256,7 @@ rule calculate_fov_metrics:
         tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
         tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
     output:
-        protected(config['metrics_dir'] + '/fovs/{sample}_counts_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/fovs/{sample}_densities_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/fovs/{sample}_fractions_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/fovs/{sample}_neighborhood_averages_per_FOV_ID.rda'),
-        protected(config['metrics_dir'] + '/fovs/{sample}_neighborhood_mean_fractions_per_FOV_ID.rda')
+        expand(config['metrics_dir'] + '/fovs/{{sample}}_{calc}_per_FOV_ID.rda', calc = allMetrics)
     #benchmark:
     #    "benchmarks/calculate_fov_metrics.{sample}.benchmark.txt"
     resources:
@@ -276,7 +277,10 @@ rule calculate_fov_metrics:
              " --number_threads " + str(config['number_threads']) + 
              " --focus fov"
 
-
+##
+## for each sample comparison, create a XLSX report of cell fraction odds ratios, 
+## cell density fold changes, confidence intervals, p values and FDR 
+##
 rule report_stats:
     input:
         expand(config['metrics_dir'] + '/fovs/{sample}_{metric}_per_FOV_ID.rda', sample = samples, metric = allMetrics),
@@ -309,15 +313,14 @@ rule report_stats:
              " --number_threads " + str(config['number_threads']) + 
              " --question {wildcards.question}"
 
-
+##
+## plot filtered cell fractions and densities (1 data point per FOV) and
+## the corresponding effect sizes and confidence intervals
 rule plot_stats_detail:
     input:
         config['statistics_tables_dir'] + '/{question}.xlsx'
     output:
-        config['statistics_detail_dir'] + '/{question}_fractions_detail.pdf',
-        config['statistics_detail_dir'] + '/{question}_fractions_detail.xlsx',
-        config['statistics_detail_dir'] + '/{question}_densities_detail.pdf',
-        config['statistics_detail_dir'] + '/{question}_densities_detail.xlsx'
+        expand(config['statistics_detail_dir'] + '/{{question}}_{calc}_detail.{ext}', calc = plotCalcs, ext = plotExts)
     resources:
         threads = int(config['number_threads']),
         mem = 32
@@ -337,17 +340,19 @@ rule plot_stats_detail:
             " --question {wildcards.question}" +
             " --statistics_conditions_file " + config['statistics_conditions_file'] +
             " --statistics_conditions_index " + config['statistics_conditions_index'] +
+            " --statistics_config_file " + config['statistics_config_file'] +
             " --statistics_detail_dir " + config['statistics_detail_dir'] +
             " --statistics_questions_file " + config['statistics_questions_file'] +
             " --statistics_tables_dir " + config['statistics_tables_dir'] +
             " --tme_by_cell_dir " + config['tme_by_cell_dir'] 
 
-
-rule run_pipeline:
+## 
+## run entire pipeline including all data processing, calculations, statistics
+## and plotting
+rule data_and_plots:
     input:
         rules.summarize_cell_counts.output,
-        expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.pdf', question=questions, calc=['fractions', 'densities']),
-        expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.xlsx', question=questions, calc=['fractions', 'densities'])
+        expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.{ext}', question=questions, calc=plotCalcs, ext = plotExts),
     output:
         touch(config['log_dir'] + "/PIPELINE_COMPLETE") 
     shell:
@@ -355,5 +360,5 @@ rule run_pipeline:
 
 
 rule all:
-    input: rules.run_pipeline.output
+    input: rules.data_and_plots.output
 

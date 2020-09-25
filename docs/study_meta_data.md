@@ -63,6 +63,20 @@ names and descriptions of all markers used in study
 
 <br>
 
+#### [StudyName]_CellTypes.xlsx
+cell type definitions and labels
+| Column | Description |
+| --------- | -------- |
+| Category | cell definition category (e.g., 'Immune', 'Tumor', 'Other', 'Functional') |
+| Cell_type | main cell type label (e.g., 'T cell', 'Macrophage/monocyte') |
+| Subtype | cell subtype label (e.g., 'CD8+ T cell', 'MHCII+ macrophage') |
+| Pos_markers | comma-delimited list of markers that are positive in each cell type |
+| Pos_required | 'all' when every marker listed in Pos_markers MUST be positive in order to fit the cell type definition; '+' when one or more marker listed in Pos_markers must be positive in a cell in order to fit the definition |
+| Neg_markers | comma-delimited list of markers that are negative in each cell type |
+| Tag | abbreviated cell type label (for internal use) |
+| Abbrev_label_for_figures | short label to use in plots; may or may not contain subscript |
+| Subscript | for cell types that do include subscript text in Abbrev_label_for_figures, this field should contain ONLY the text that is to be subscripted in that label; this is because the code has no way to identify subscripted text when reading from XLSX file |
+
 <!-- 
 #### [StudyName]_Files.xlsx
 manifest of all halo files per FOV

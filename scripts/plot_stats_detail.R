@@ -53,6 +53,7 @@ usage <- function(){
             --statistics_conditions_file     XLSX file listing all cell states/conditions to 
                                              compare between two sample groups
             --statistics_conditions_index    XLSX file with pre-indexed cell states/conditions
+            --statistics_config_file         YAML file containing stats config including results filters
             --statistics_detail_dir          directory where plot data and figures will be saved
             --statistics_questions_file      XLSX file outlining all questions/comparisons for 
                                              which stats should be run
@@ -95,7 +96,10 @@ args <- processCMD(commandArgs(asValue=TRUE), list(), minReq, usage)
 ###################################
 ##   CONFIGURE & INITIALIZE DATA ##
 ###################################
-cfg <- resolveConfig(args, read_yaml(args$plot_color_file), read_yaml(args$figure_config_file))
+cfg <- resolveConfig(args, 
+                     read_yaml(args$plot_color_file), 
+                     read_yaml(args$figure_config_file), 
+                     read_yaml(args$statistics_config_file))
 if(!is.null(cfg$plot_calculation)){ 
     cfg$calculations <- cfg$calculations[cfg$plot_calculation]
 }
@@ -167,7 +171,7 @@ for(calc in names(cfg$calculations)){
                                       calculation    = calc, 
                                       calcColumn     = cfg$calculations[[calc]]$calc_column, 
                                       cellStateIDs   = ids,
-                                      statsFilters   = cfg$bio_filter, 
+                                      statsFilters   = cfg$results_filters[[cfg$use_filter]][[calc]], 
                                       facetOrder     = cfg$facet_order, 
                                       popOrder       = facetOrder$Tag, 
                                       idOrder        = ids,
@@ -190,8 +194,8 @@ for(calc in names(cfg$calculations)){
 
         clrKeys     <- gsub(" \\(.*", "", levels(plotDat$fovVals$GroupLabel))
         clrs        <- cfg$clinical_colors[clrKeys]
-        clrs[clrs == "#66CD00"] <- "#009ed8"  ## green to blue
-        clrs[clrs == "#C80000"] <- "#ff8a30"  ## red to orange
+        clrs[toupper(clrs) == "#66CD00"] <- "#009ed8"  ## green to blue
+        clrs[toupper(clrs) == "#C80000"] <- "#ff8a30"  ## red to orange
 
         names(clrs) <- levels(plotDat$fovVals$GroupLabel)
 
