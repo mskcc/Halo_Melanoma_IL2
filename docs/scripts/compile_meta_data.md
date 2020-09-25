@@ -1,7 +1,7 @@
-#### compile_meta_data.R
+## compile_meta_data.R
 
-## Usage:  
-
+Usage:  
+```
 Rscript compile_meta_data.R 
             
     [REQUIRED (may be defined on command line OR in manifest file)] 
@@ -17,7 +17,7 @@ Rscript compile_meta_data.R
         --manifest      YAML file containing one or more required parameter; 
                         NOTE: arguments on command line override manifest 
                         arguments!!!     
-
+```
 ## Output:
 
 RDA file containing a list with the following elements:
