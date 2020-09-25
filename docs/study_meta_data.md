@@ -72,7 +72,7 @@ cell type definitions and labels
 | Subtype | cell subtype label (e.g., 'CD8+ T cell', 'MHCII+ macrophage') |
 | Pos_markers | comma-delimited list of markers that are positive in each cell type |
 | Pos_required | 'all' when every marker listed in Pos_markers MUST be positive in order to fit the cell type definition; '+' when one or more marker listed in Pos_markers must be positive in a cell in order to fit the definition |
-| Neg_markers | comma-delimited list of markers that are negative in each cell type |
+| Neg_markers | comma-delimited list of markers that must be negative in order to fit the cell type definition |
 | Tag | abbreviated cell type label (for internal use) |
 | Abbrev_label_for_figures | short label to use in plots; may or may not contain subscript |
 | Subscript | for cell types that do include subscript text in Abbrev_label_for_figures, this field should contain ONLY the text that is to be subscripted in that label; this is because the code has no way to identify subscripted text when reading from XLSX file |
