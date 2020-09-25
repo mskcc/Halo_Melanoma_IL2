@@ -2,7 +2,7 @@
 To print usage of any of these scripts, run:
 
 ```
-Rscript [script.R] -h
+Rscript [script.R]
 ```
 
 ### Validate meta data
