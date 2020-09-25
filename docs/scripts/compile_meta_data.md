@@ -22,12 +22,12 @@ Rscript compile_meta_data.R
 
 RDA file containing a list with the following elements:
 
-**Patients:** tibble created from [StudyName]_Patients.xlsx  
-**Samples:** tibble created from [StudyName]_Samples.xlsx
-- any samples for which ALL FOVs are marked for exclusion in [StudyName]_FOVs.xlsx are excluded
-- Sample_ID is generated in the form [Patient_ID]_[Sample_number]
-**FOVs:** tibble created from [StudyName]_FOVs.xlsx
-- any FOVs marked for exclusion are excluded
-- FOV_ID is generated in the form [Patient_ID]_[Sample_number]_[FOV_number]  
-**flat:** tibble that is a full join of Patients, Samples and FOVs by CellDive_ID   
-**IDs:** tibble that is a map of all FOV identifiers   
+* **Patients:** tibble created from [StudyName]_Patients.xlsx  
+* **Samples:** tibble created from [StudyName]_Samples.xlsx
+    * any samples for which ALL FOVs are marked for exclusion in [StudyName]_FOVs.xlsx are excluded
+    * Sample_ID is generated in the form [Patient_ID]_[Sample_number]
+* **FOVs:** tibble created from [StudyName]_FOVs.xlsx
+    * any FOVs marked for exclusion are excluded
+    * FOV_ID is generated in the form [Patient_ID]_[Sample_number]_[FOV_number]  
+* **flat:** tibble that is a full join of Patients, Samples and FOVs by CellDive_ID   
+* **IDs:** tibble that is a map of all FOV identifiers   
