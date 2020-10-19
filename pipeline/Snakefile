@@ -76,6 +76,63 @@ rule compile_meta_data:
             " --meta_data_file " + config['meta_data_file']
 
 ##
+## parse Halo boundary XML files
+## 
+rule halo_boundary_xml_to_rda:
+    input:
+        lambda wildcards: glob.glob(config['halo_boundaries_xml_dir'] + '/*/{sample}_Spot*.annotations'.format(sample=wildcards.sample)) 
+    output:
+        config['halo_boundaries_rda_dir'] + '/{sample}_halo_boundaries.rda'
+    resources:
+        threads = 1, 
+        mem = 12,
+    shell:
+        "{Rpath}/Rscript {src}/scripts/halo_boundary_xml_to_rda.R " +
+            " --cell_dive_id {wildcards.sample}" +
+            " --halo_boundaries_xml_dir " + config['halo_boundaries_xml_dir'] +
+            " --halo_boundaries_rda_dir " + config['halo_boundaries_rda_dir'] +
+            " --meta_dir " + config['meta_dir'] +
+            " --number_threads 1" 
+
+## 
+## QC boundaries
+## 
+rule qc_halo_boundaries:
+    input:
+        config['halo_boundaries_rda_dir'] + '/{sample}_halo_boundaries.rda'
+    output:
+        config['qc_dir'] + '/{sample}_halo_boundaries_qc.pdf'
+    resources:
+        threads = 1,
+        mem = 12
+    shell:
+        "{Rpath}/Rscript {src}/scripts/qc/halo_boundaries.R " +
+            " --halo_boundaries_rda_dir " + config['halo_boundaries_rda_dir'] +
+            " --meta_dir " + config['meta_dir'] +
+            " --qc_dir " + config['qc_dir'] +
+            " --raw_data_dir " + config['raw_data_dir'] +
+            " --cell_dive_id {wildcards.sample}"
+
+##
+## mark FOV/cell/marker exclusions
+## 
+'''
+rule mark_exclusions:
+    input:
+        raw_data_file = config['raw_data_dir'] + '/{sample}_MegaTableV5b.rda',
+        boundaries = glob.glob(config['halo_boundaries_rda_dir'] + '{sample}_halo_boundaries.rda'),
+        fov_meta = glob.glob(config['meta_dir'] + '/*_FOVs.xlsx')
+    output:
+        config['exclusion_data_dir'] + '/{sample}_MegaTableV5b.rda_Excl.rda'
+    shell:
+        "{Rpath}/Rscript {src}/scripts/mark_exclusions.R " +
+            " --raw_data_files {input.raw_data_file} " +
+            " --data_file {output} " +
+            " --meta_dir " + config['meta_dir']
+'''
+
+
+##
 ## sort all phenotypes and cell fractions and assign a 'Cell State ID' to each one
 ##
 rule index_conditions:
@@ -351,8 +408,9 @@ rule plot_stats_detail:
 ## and plotting
 rule data_and_plots:
     input:
-        rules.summarize_cell_counts.output,
-        expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.{ext}', question=questions, calc=plotCalcs, ext = plotExts),
+        #rules.summarize_cell_counts.output,
+        expand(config['qc_dir'] + '/{sample}_halo_boundaries_qc.pdf', sample = samples) #,
+        #expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.{ext}', question=questions, calc=plotCalcs, ext = plotExts),
     output:
         touch(config['log_dir'] + "/PIPELINE_COMPLETE") 
     shell:

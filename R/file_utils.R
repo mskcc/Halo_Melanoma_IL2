@@ -77,7 +77,7 @@ getFiles <- function(path=NULL, files=NULL, pattern=NULL){
         stop("Must provide either path or files argument.")
     }
     if(!is.null(pattern)){
-        fls <- fls[grepl(pattern, fls)]
+        fls <- fls[grepl(pattern, basename(fls))]
     }
     fls
 

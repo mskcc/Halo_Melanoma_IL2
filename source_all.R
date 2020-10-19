@@ -1,3 +1,5 @@
+options(dplyr.summarise.inform = FALSE)
+
 srcRoot <- "/home/byrne/halo/dev/melanoma"
 
 suppressMessages(library(assertthat))

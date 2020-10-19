@@ -1,0 +1,3 @@
+WorkflowError in line 9 of /home/byrne/halo/dev/melanoma/pipeline/Snakefile:
+Config file input/config/study_config.yaml not found.
+  File "/home/byrne/halo/dev/melanoma/pipeline/Snakefile", line 9, in <module>
