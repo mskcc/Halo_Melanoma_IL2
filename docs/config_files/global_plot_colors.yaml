@@ -1,0 +1,276 @@
+## Example plot color configuration
+## August 18, 2020
+#
+# This file contains an exhaustive list of all possible plot labels
+# and the colors that should represent them in ALL standard plots
+# for consistency across the project.
+
+
+# 'plot_colors' nested list is for all marker combinations and cell annotation
+# labels that may appear in project figures. Colors may be R color names
+# or hexadecimal color codes
+
+# 'clinical_colors' nested list is for all clinical sample/FOV labels
+# that may appear in project figures. Again, colors may be R color names or
+# hexadecimal color codes
+
+plot_colors:
+    ## for marker combinations, order the markers within each combo exactly as they should
+    ## appear on any plot, and also order the combinations in the order they should be
+
+    ## macrophage marker combinations (peaches/reds/grays)
+    CD14: '#989898'
+    CD163: '#beada7'
+    CD4: '#ded6d3'
+    CD68: '#f4f1f0'
+    CD14,CD163: '#ff6666'
+    CD14,CD4: '#ff8080'
+    CD14,CD68: '#ffb3b3'
+    CD163,CD4: '#ffcccc'
+    CD163,CD68: '#fbe9e9'
+    CD4,CD68: '#f5efef'
+    CD14,CD163,CD4: '#330000'
+    CD14,CD163,CD68: '#660000'
+    CD14,CD4,CD68: '#990000'
+    CD163,CD4,CD68: '#cc0000'
+    CD14,CD163,CD4,CD68: '#000000'
+
+    ## exhaustion               (reds/yellow/greens)
+    # PD1,TIM3,LAG3
+    tripPos: &tripPos '#d03a12'
+    PD1,TIM3,LAG3: *tripPos
+    PD1,LAG3,TIM3: *tripPos
+    LAG3,PD1,TIM3: *tripPos
+    # PD1,TIM3
+    PD1,TIM3: &pd1tim3 '#fbb118' #'#f8f35d'
+    LAG3-,PD1,TIM3: *pd1tim3
+    PD1,LAG3-,TIM3: *pd1tim3
+    PD1,TIM3,LAG3-: *pd1tim3
+    # PD1,LAG3
+    PD1,LAG3: &pd1lag3 '#ede61d' #'#e9da12'
+    LAG3,PD1,TIM3-: *pd1lag3
+    PD1,LAG3,TIM3-: *pd1lag3
+    PD1,TIM3-,LAG3: *pd1lag3
+    # TIM3,LAG3
+    TIM3,LAG3: &tim3lag3 '#fefcc8' #'#f7f5d3'
+    LAG3,PD1-,TIM3: *tim3lag3
+    PD1-,TIM3,LAG3: *tim3lag3
+    PD1-,LAG3,TIM3: *tim3lag3
+    # PD1
+    LAG3-,PD1,TIM3-: &pd1 '#486340' #'#9acd32'
+    PD1,LAG3-,TIM3-: *pd1
+    PD1,TIM3-,LAG3-: *pd1
+    # TIM3
+    LAG3-,PD1-,TIM3: &tim3 '#73b073' #'#81efb6'
+    PD1-,LAG3-,TIM3: *tim3
+    PD1-,TIM3,LAG3-: *tim3
+    # LAG3
+    LAG3,PD1-,TIM3-: &lag3 '#9ffea7' #'#808000'
+    PD1-,LAG3,TIM3-: *lag3
+    PD1-,TIM3-,LAG3: *lag3
+    # triple neg
+    Negative: &tripNeg '#caced1'
+    LAG3-,PD1-,TIM3-: *tripNeg 
+    PD1-,LAG3-,TIM3-: *tripNeg
+    PD1-,TIM3-,LAG3-: *tripNeg
+
+    ## functional macrophages
+    PDL1,B7H3,IDO1: '#d03a12'     # triple
+    PDL1,B7H3,IDO1-: '#f8f35d'    # double
+    PDL1,B7H3-,IDO1: '#e9da12'    # double
+    PDL1-,B7H3,IDO1: '#f7f5d3'    # double
+    PDL1,B7H3-,IDO1-: '#9acd32'   # single
+    PDL1-,B7H3,IDO1-: '#81efb6'   # single
+    PDL1-,B7H3-,IDO1: '#808000'   # single
+    PDL1-,B7H3-,IDO1-: '#caced1'  # neg
+
+    ## antigen presentation
+    B2M,MHCI,MHCII: '#d03a12'     # triple
+    B2M,MHCI,MHCII-: '#f8f35d'    # double
+    B2M,MHCI-,MHCII: '#e9da12'    # double
+    B2M-,MHCI,MHCII: '#f7f5d3'    # double
+    B2M,MHCI-,MHCII-: '#9acd32'   # single
+    B2M-,MHCI,MHCII-: '#81efb6'   # single
+    B2M-,MHCI-,MHCII: '#808000'   # single
+    B2M-,MHCI-,MHCII-: '#caced1'  # neg
+
+
+    ## Cell types & subtypes
+    Other_leuk: &Other_leuk '#708090'
+    Other leukocyte: *Other_leuk
+    Leukocyte: *Other_leuk
+
+    T cell: blue
+    Tnull: &Tnull '#f9f9ca'
+    T cell/null phenotype: *Tnull
+
+    Tconv4: &Tconv4 '#9ecae1'
+    CD4+ T cell: *Tconv4
+
+    Tconv8: &Tconv8 '#a1d99b'
+    CD8+ T cell: '#a1d99b'
+
+    CD4_8: &CD4_8 '#9ee1d8'
+    CD4+/CD8+ T cell: *CD4_8
+    T4_8: *CD4_8
+
+    Treg: &Treg '#daecb4'
+    Regulatory T cell: *Treg
+    Double negative regulatory T cell: *Treg
+
+    Treg4: &Treg4 '#08519c'
+    CD4+ regulatory T cell: *Treg4
+
+    Treg8: &Treg8 '#31a354'
+    CD8+ regulatory T cell: *Treg8
+
+    B: &B yellow
+    B cell: *B
+
+    NK: &NK purple
+    Natural killer cell: *NK
+    Natural killer cell overall: '#4a235a'
+
+    NKT: &NKT '#dab3ff'
+    Natural killer T cell: *NKT
+
+    NKT8: &NKT8 '#a993ba'
+    Natural killer T cell/CD8: *NKT8
+
+    NKT4: &NKT4 '#800080'
+    Natural killer T cell/CD4: *NKT4
+
+    Macrophage/monocyte: red
+
+    M1: &M1 '#FEC8C8'
+    M1 macrophage: *M1
+    'MHCII+ macrophage': *M1
+    MHCIIpos_macro: *M1
+
+    M2: &M2 '#DE6564'
+    M2 macrophage: *M2
+    'MHCII- macrophage': *M2
+    MHCIIneg_macro: *M2
+
+    Other_macro: &Other_macro '#BF0200'
+    Other macrophage/monocyte: *Other_macro
+
+    Tumor: black
+    Immune: lightgray
+    Nerve: gray
+    Unknown: gray
+    Other: lightgray
+    All: lightgray
+
+    ### single functional markers
+    PD1/TIM3/LAG3: '#7100e5'
+    PD1: '#7100E5'
+    LAG3: '#CB99FF'
+    TIM3: '#E5CCFF'
+    CD27/ICOS: '#64D8A1'
+    CD27: '#516600'
+    ICOS: '#9DB24C'
+    # functional macrophages
+    PDL1/B7H3/IDO1: '#5a61fa'
+    PDL1: '#5a61fa'
+    B7H3: '#8ca1f3'
+    IDO1: '#bbccec'
+    # cd25  
+    CD25: '#8b4513'
+    # Antigen presentation
+    B2M/MHCI/MHCII: '#E49514'
+    B2M: '#ef9514'
+    MHCI: '#efb55e'
+    MHCII: '#efd3a9'
+    # ??
+    MRC1/TGM2: '#d2325e'
+    MRC1: '#d2325e'
+    TGM2: '#fb74a9'
+    ## proliferation
+    KI67: "darkgreen"
+    ## touching macros
+    TM: '#F8660D'
+    ## significant
+    #'*': '#C60083'   # magenta
+    '*': '#f5f5f5'    # charcoal (my name for it)
+
+clinical_colors:
+    Pos.Env: '#66CD00'
+    Neg.Env: '#C80000'
+    Complete Responder: '#66CD00'
+    Responder: '#66CD00'
+    Non-/Mixed Responder: '#C80000'
+    Non-/Partial Responder: '#C80000'
+    Non-Responder/Partial Responder: '#C80000'
+    UT: '#C80000'
+    IL-2 Treated: '#66CD00'
+    non-CR: '#66CD00'
+    Center: '#66CD00'
+    Interface: '#C80000'
+    High: '#66CD00' 
+    Low: '#C80000'
+    Interface Inside: '#c68000'
+    Interface Outside: '#66cd00'
+
+    Prior Rx (systemic):
+        ICI: '#0c2c84'
+        non-ICI: '#df65b0'
+        None: gray
+    IL2_treated:
+        +: '#75A1D0'
+        -: gray
+    Lesion_response:
+        UT: gray
+        non-CR: orange
+        CR: '#32cd32'
+    IL2 interval (days):
+        '<15': '#084594'
+        '15-60': '#4292c6'
+        '>60': '#9ecae1'
+        None: gray
+    Num. IL2 injections:
+        '<4': '#9ed891'
+        '4-10': '#64875d'
+        '>10': '#344930'
+        None: gray
+    Patient:
+        '0': blue
+        '1': red
+        '2': orange
+        '3': '#32cd32'
+        '4': purple
+        '5': yellow
+        '6': '#00b3b5'
+    Sample:
+        0_1: "#2B00E5"
+        0_2: "#5D63EA"
+        0_3: "#8FC6EF"
+        1_1: "#E5001D"
+        1_2: "#ED6C73"
+        1_3: "#F6D9CA"
+        2_1: "#E58600"
+        2_2: "#EDB965"
+        2_4: "#F6ECCA"
+        3_1: "#659717"
+        3_2: "#A0C670"
+        4_1: "#3C0599"
+        4_2: "#663AAD"
+        4_3: "#9070C1"
+        4_4: "#BAA6D5"
+        4_5: "#E5DCEA"
+        5_1: "#F8F40D"
+        5_2: "#F7F7C9"
+        6_1: "#048F6D"
+        6_2: "#39A98E"
+        6_3: "#6FC4B0"
+        6_4: "#A5DFD1"
+    Patient_response:
+        Complete Responder: chartreuse3
+        Partial Responder: orange
+        Non-Responder: red
+        Non-Responder_and_Partial Responder: "#ffff4d"
+    FOV_type:
+        Center: "#5c5c8a"
+        Interface: "#d64e8a"
+        Regressed: "#33334d"
+

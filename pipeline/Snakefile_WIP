@@ -1,0 +1,401 @@
+import glob
+import sys
+import os
+import pandas as pd
+from snakemake.utils import validate, min_version
+
+min_version("5.1.2")
+
+configfile: "input/config/study_config.yaml"
+src = "/home/byrne/halo/dev/melanoma"
+
+#
+## get samples via FOV meta data file because we do NOT want to include
+## samples for which ALL FOVs are to be excluded
+#
+fovFile = glob.glob(config['meta_dir'] + '/*FOVs.xlsx') 
+fovs    = pd.read_excel(fovFile[0])
+samples = fovs[fovs['FOV_exclusion'] != 'X'].CellDive_ID.unique().tolist()
+
+#
+## pull out TUMOR samples/lesions (i.e., those without a complete response)
+#
+sampleFile = glob.glob(config['meta_dir'] + '/*Samples.xlsx')
+sampInfo = pd.read_excel(sampleFile[0])
+tumors = sampInfo[sampInfo['Lesion_response'] != 'CR'].CellDive_ID.unique().tolist()
+tumors = list(set(samples) & set(tumors)) 
+
+#
+## get stats questions
+#
+qFile = config['statistics_questions_file']
+questions = pd.read_excel(qFile).QuestionNumber.tolist()
+
+
+
+rule validate_input:
+    input:
+        "input/config/study_config.yaml",
+        glob.glob(config['meta_dir'] + '/*.xlsx'),
+        glob.glob(config['config_dir'] + '/statistics_*.xlsx')
+    output:
+        touch(config['log_dir'] + "/INPUT_VALID")
+    shell:
+        "Rscript {src}/scripts/validate_input.R --manifest {input}"
+
+
+rule compile_meta_data:
+    input:
+        glob.glob(config['meta_dir'] + '/*.xlsx')
+    output:
+        config['meta_data_file']
+    shell:
+        "Rscript {src}/scripts/compile_meta.R " +
+            " --manifest input/config/study_config.yaml " +
+            " --meta_data_file " + config['meta_data_file']
+
+
+"""
+*****************
+*  NICK'S CODE  *
+*****************
+rule halo_csv_to_rda:
+    input:
+        config['halo_csv_dir'] + "/{sample}_[ADD_SUFFIX].csv.gz"
+    output:
+        config['raw_data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
+    shell:
+        "Rscript {src}/scripts/halo_csv_to_rda.R  [NICK'S CODE]
+          ...
+          ...
+"""
+
+
+"""
+******************
+*  ZHENG'S CODE  *
+******************
+rule measure_drift:
+    input:
+        config['halo_image_dir'] + "/{sample}_[ADD_SUFFIX_AND_EXTENSION]
+    output:
+        config['drift_summary_dir'] + "/{sample}_[ADD_SUFFIX].txt"
+    shell:
+        [ZHENG'S CODE]
+"""
+
+
+"""
+******************
+*  NICK'S CODE?  *
+******************
+rule halo_boundary_xml_to_rda:
+    input:
+        config['halo_boundaries_xml_dir'] + "{sample}_[ADD_SUFFIX].annotations?"
+        ### THIS WILL NEED TO CHANGE BASED ON DIRECTORY STRUCTURE,
+        ### I.E., ARE BOUNDARIES STILL GOING TO BE SEPARATED ACCORDING TO BOUNDARY TYPE?        
+    output:
+        ### single boundary file or one per sample?
+    shell:
+        ### NICK'S CODE?
+"""
+
+
+"""
+******************
+*  CAIT'S  CODE  *
+******************
+rule mark_exclusions:
+    input:
+        config['raw_data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
+    output:
+        config['exclusion_data_dir'] + "/{sample}_[ADD_SUFFIX]_Excl.rda"
+    shell:
+        [MY CODE]???
+"""
+
+
+"""
+*****************
+*  NICK'S CODE  *
+*****************
+rule normalize_and_rethreshold:
+    input:
+        config['exclusion_data_dir'] + "/{sample}_[ADD_SUFFIX]_Excl.rda"
+    output:
+        config['data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
+    shell:
+        [NICK'S CODE]
+
+Also, is reassignment part of this script or separate????
+"""
+
+"""
+*****************
+*  NICK'S CODE  *
+*****************
+rule measure_cell_to_cell_distances:
+    input:
+        config['data_dir'] + "/{sample}_[ADD_SUFFIX].rda"
+    output:
+        config['neighborhood_dir'] + "{sample}_[CELLTYPE]-[SUBTYPE]___VS___[CELLTYPE]-[SUBTYPE]_[MIN_DISTANCE].rda"
+        ## ^^^^ THIS IS NOT EXACT RIGHT NOW ^^^^
+    shell:
+        [NICK'S CODE]
+"""
+
+
+"""
+*****************
+*  NICK'S CODE  *
+*****************
+rule assign_tumor_environments:
+    input:
+    output:
+    shell:
+        [NICK'S CODE]
+"""
+
+
+rule index_conditions:
+    input:
+        conds_xlsx = config['statistics_conditions_file'],
+        annotation_config = config['annotation_config_file']
+    output:
+        config['statistics_conditions_index']
+    shell:
+        "Rscript {src}/scripts/index_conditions.R " +
+            " --statistics_conditions_file {input.conds_xlsx} " +
+            " --annotation_config_file {input.annotation_config} " +
+            " --statistics_conditions_index {output}" 
+
+rule annotate_cells:
+    input:
+        meta_dir = config['meta_dir'],
+        meta_data_file = rules.compile_meta_data.output, 
+        data_files = config['data_dir'] + "/{sample}_MegaTableV5b_Excl_SOX10reThres_Rule2__TnullFix.rda"
+    output:
+        config['cell_data_dir'] + "/{sample}_annotated_cells.rda"
+    resources:
+        threads = 1,
+        mem = 14
+    shell:
+        """Rscript {src}/scripts/annotate_cells.R \
+             --number_threads 1 \
+             --meta_data_file {input.meta_data_file} \
+             --meta_dir {input.meta_dir} \
+             --data_files {input.data_files} \
+             --annotated_cells_file {output}"""
+
+rule summarize_cell_counts:
+    input:
+        meta_data_file = config['meta_data_file'],
+        annotated_cells = expand(config['cell_data_dir'] + "/{sample}_annotated_cells.rda", sample=samples)
+    output:
+        config['cell_type_marker_counts_file']
+    resources:
+        threads = int(config['number_threads']),
+        mem = 22
+    shell:
+        "Rscript {src}/scripts/count_cell_types.R " +
+             " --number_threads " + str(config['number_threads']) +
+             " --cell_data_dir " + config['cell_data_dir'] +
+             " --meta_dir " + config['meta_dir'] +
+             " --cell_type_counts_file {output} "
+
+
+rule calculate_interface_area:
+    input:
+        rules.compile_meta_data.output,
+        data_files = config['data_dir'] + "/{tumor}_MegaTableV5b_Excl_SOX10reThres_Rule2__TnullFix.rda",
+        halo_boundaries_file = config['halo_boundaries_file']
+    output:
+        config['infiltration_area_dir'] + "/{tumor}_infiltration_band_areas.rda",
+        config['band_dir'] + "/{tumor}_infiltration_bands.rda"
+    resources:
+        threads = 1,
+        mem = 22
+    shell:
+        "Rscript {src}/scripts/calculate_area.R" +
+             " --manifest input/config/study_config.yaml" + 
+             " --halo_boundaries_file {input.halo_boundaries_file}" +
+             " --data_files {input.data_files}" + 
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --infiltration_area_dir " + config['infiltration_area_dir'] + 
+             " --band_dir " + config['band_dir'] +
+             " --focus interface"
+
+
+rule calculate_fov_area:
+    input:
+        rules.compile_meta_data.output,
+        data_files = config['data_dir'] + "/{sample}_MegaTableV5b_Excl_SOX10reThres_Rule2__TnullFix.rda",
+        halo_boundaries_file = config['halo_boundaries_file']
+    output:
+        config['fov_area_dir'] + "/{sample}_fov_areas.rda"
+    resources:
+        threads = 1,
+        mem = 14
+    shell:
+        "Rscript {src}/scripts/calculate_area.R" +
+             " --manifest input/config/study_config.yaml" +
+             " --halo_boundaries_file {input.halo_boundaries_file}" +
+             " --data_files {input.data_files}" +
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --infiltration_area_dir " + config['infiltration_area_dir'] +
+             " --band_dir " + config['band_dir'] +
+             " --focus fov"
+ 
+        
+rule calculate_interface_metrics:
+    input:
+        rules.compile_meta_data.output,
+        rules.index_conditions.output,
+        config['cell_data_dir'] + "/{tumor}_annotated_cells.rda",
+        config['infiltration_area_dir'] + "/{tumor}_infiltration_band_areas.rda",
+        config['band_dir'] + "/{tumor}_infiltration_bands.rda",
+        st_config = config['statistics_config_file'],
+        conditions = config['statistics_conditions_file'],
+        questions = config['statistics_questions_file'],
+        macro_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C*/*Macrophage*.rda'),
+        tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
+        tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
+    output:
+        config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID__Band.rda',
+        config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID__Band.rda'
+    resources:
+        threads = 1,
+        mem = 16
+    shell:
+        "Rscript {src}/scripts/calculate_metrics.R" +
+             " --manifest input/config/study_config.yaml" +
+             " --annotation_config_file " + config['annotation_config_file'] + 
+             " --cell_data_dir " + config['cell_data_dir'] +
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --band_dir " + config['band_dir'] +
+             " --statistics_config_file {input.st_config} " + 
+             " --statistics_questions_file {input.questions} " +
+             " --statistics_conditions_file {input.conditions} " +
+             " --metrics_dir " + config['metrics_dir'] +
+             " --cell_dive_id {wildcards.tumor}" +
+             " --focus interface"
+
+             
+rule calculate_fov_metrics:
+    input:
+        rules.compile_meta_data.output,
+        rules.index_conditions.output,
+        config['cell_data_dir'] + "/{sample}_annotated_cells.rda",
+        config['fov_area_dir'] + "/{sample}_fov_areas.rda",
+        st_config = config['statistics_config_file'],
+        questions_file = config['statistics_questions_file'],
+        macro_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C*/*Macrophage*.rda'),
+        tumor_nbhd_files = glob.glob(config['neighborhood_dir'] + '/C2/*Tumor*.rda'),
+        tme_by_cell_files = glob.glob(config['tme_by_cell_dir'] + '*.rda')
+    output:
+        config['metrics_dir'] + '/fovs/{sample}_counts_per_FOV_ID.rda',
+        config['metrics_dir'] + '/fovs/{sample}_densities_per_FOV_ID.rda',
+        config['metrics_dir'] + '/fovs/{sample}_fractions_per_FOV_ID.rda',
+        config['metrics_dir'] + '/fovs/{sample}_neighborhood_averages_per_FOV_ID.rda',
+        config['metrics_dir'] + '/fovs/{sample}_neighborhood_mean_fractions_per_FOV_ID.rda'
+    resources:
+        threads = 1,
+        mem = 10
+    shell:
+        "Rscript {src}/scripts/calculate_metrics.R" +
+             " --manifest input/config/study_config.yaml" +
+             " --annotation_config_file " + config['annotation_config_file'] +
+             " --cell_data_dir " + config['cell_data_dir'] +
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --band_dir " + config['band_dir'] +
+             " --infiltration_area_dir " + config['infiltration_area_dir'] +
+             " --statistics_config_file {input.st_config} " +
+             " --statistics_questions_file {input.questions_file} " +
+             " --metrics_dir " + config['metrics_dir'] +
+             " --cell_dive_id {wildcards.sample}" +
+             " --focus fov"
+
+
+
+rule report_stats:
+    input:
+        expand(config['metrics_dir'] + '/fovs/{sample}_counts_per_FOV_ID.rda', sample=samples),
+        expand(config['metrics_dir'] + '/fovs/{sample}_densities_per_FOV_ID.rda', sample=samples),
+        expand(config['metrics_dir'] + '/fovs/{sample}_fractions_per_FOV_ID.rda', sample=samples),
+        expand(config['metrics_dir'] + '/fovs/{sample}_neighborhood_averages_per_FOV_ID.rda', sample=samples),
+        expand(config['metrics_dir'] + '/fovs/{sample}_neighborhood_mean_fractions_per_FOV_ID.rda', sample=samples),
+        expand(config['metrics_dir'] + '/infiltration/{tumor}_counts_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/infiltration/{tumor}_densities_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/infiltration/{tumor}_fractions_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_averages_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/infiltration/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/inside_interface/{tumor}_counts_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/inside_interface/{tumor}_densities_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/inside_interface/{tumor}_fractions_per_FOV_ID.rda', tumor=tumors), 
+        expand(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/inside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/outside_interface/{tumor}_counts_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/outside_interface/{tumor}_densities_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/outside_interface/{tumor}_fractions_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_averages_per_FOV_ID.rda', tumor=tumors),
+        expand(config['metrics_dir'] + '/outside_interface/{tumor}_neighborhood_mean_fractions_per_FOV_ID.rda', tumor=tumors)
+    output:
+        config['statistics_tables_dir'] + '/{question}.xlsx'
+    resources:
+        threads = 1,
+        mem = 32
+    shell:
+        "Rscript {src}/scripts/report_statistics.R" +
+             " --manifest input/config/study_config.yaml" +
+             " --annotation_config_file " + config['annotation_config_file'] +
+             " --cell_data_dir " + config['cell_data_dir'] +
+             " --fov_area_dir " + config['fov_area_dir'] +
+             " --band_dir " + config['band_dir'] +
+             " --metrics_dir " + config['metrics_dir'] +
+             " --infiltration_area_dir " + config['infiltration_area_dir'] +
+             " --statistics_config_file " + config['statistics_config_file'] +
+             " --statistics_questions_file " + config['statistics_questions_file'] +
+             " --statistics_conditions_file " + config['statistics_conditions_file'] +
+             " --question {wildcards.question}"
+
+
+rule run_pipeline:
+    input:
+        rules.summarize_cell_counts.output,
+        expand(config['statistics_tables_dir'] + '/{question}.xlsx', question=questions)
+    output:
+        touch(config['log_dir'] + "/PIPELINE_COMPLETE") 
+    shell:
+        "touch {output}"        
+
+rule all:
+    input: rules.run_pipeline.output
+

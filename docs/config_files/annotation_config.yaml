@@ -1,0 +1,208 @@
+# Example cell annotation configuration
+# August 18, 2020
+#
+# This file contains config describing how all cell classifications
+# should be ordered before Cell State IDs are assigned
+
+# the order in which columns from stats conditions XLSX file 
+# should generally be arranged when plotting
+annotation_order:
+    - Cell State ID
+    - Cell_type
+    - Subtype
+    - Proliferation
+    - Functional
+    - Functional Combination
+
+# the order in which spatial columns from stats conditions XLSX file
+# should generally be arranged when plotting
+spatial_annotation_order:
+    - Cell State ID
+    - Center Population A
+    - Neighborhood Population A
+    - Center Population B
+    - Neighborhood Population B
+
+# this nested list includes all possible cell type/state/function 
+# columns and their values, all in the order they should appear
+# in standard tables or plots; list element names must match exactly
+# column names in stats conditions XLSX file and each value in a 
+# nested list must match exactly one element in the same file.
+arrange_annotation:
+    Cell_type:
+        - T cell
+        - B cell
+        - Natural killer cell overall
+        - Macrophage/monocyte
+        - Other leukocyte
+        - Tumor
+    Subtype:
+        - CD4+ T cell
+        - CD8+ T cell
+        - CD4+ regulatory T cell
+        - CD8+ regulatory T cell
+        - Double negative regulatory T cell
+        - CD4+/CD8+ T cell
+        - T cell/null phenotype
+        - B cell
+        - Natural killer cell
+        - Natural killer T cell
+        - Natural killer T cell/CD4
+        - Natural killer T cell/CD8
+        - MHCII+ macrophage
+        - MHCII- macrophage
+        - Other macrophage/monocyte
+        - All
+    Proliferation:
+        - KI67
+    Functional:
+        - PD1
+        - LAG3
+        - TIM3
+        - CD27
+        - ICOS
+        - CD25
+        - PDL1
+        - B7H3
+        - IDO1
+        - B2M
+        - MHCI
+        - MHCII
+        - MRC1
+        - TGM2
+    Functional Combination:
+        - PD1,TIM3,LAG3
+        - PD1,TIM3,LAG3-
+        - PD1,TIM3-,LAG3
+        - PD1-,TIM3,LAG3
+        - PD1,TIM3-,LAG3-
+        - PD1-,TIM3,LAG3-
+        - PD1-,TIM3-,LAG3
+        - PD1-,TIM3-,LAG3-
+        - PDL1,B7H3,IDO1
+        - PDL1,B7H3,IDO1-
+        - PDL1,B7H3-,IDO1
+        - PDL1-,B7H3,IDO1
+        - PDL1,B7H3-,IDO1-
+        - PDL1-,B7H3,IDO1-
+        - PDL1-,B7H3-,IDO1
+        - PDL1-,B7H3-,IDO1-
+        - B2M,MHCI,MHCII
+        - B2M,MHCI,MHCII-
+        - B2M,MHCI-,MHCII
+        - B2M-,MHCI,MHCII
+        - B2M,MHCI-,MHCII-
+        - B2M-,MHCI,MHCII-
+        - B2M-,MHCI-,MHCII
+        - B2M-,MHCI-,MHCII-
+    Cell_state:
+        Marker Positivity:
+            - PD1/TIM3/LAG3
+            - CD27/ICOS
+            - CD25
+            - PDL1/B7H3/IDO1
+            - B2M/MHCI/MHCII
+            - MRC1/TGM2
+        T,B,NK:
+            - PD1,TIM3,LAG3
+            - PD1,TIM3,LAG3-
+            - PD1,TIM3-,LAG3
+            - PD1-,TIM3,LAG3
+            - PD1,TIM3-,LAG3-
+            - PD1-,TIM3,LAG3-
+            - PD1-,TIM3-,LAG3
+            - PD1-,TIM3-,LAG3-
+        Macro/Mono:
+            - PDL1,B7H3,IDO1
+            - PDL1,B7H3,IDO1-
+            - PDL1,B7H3-,IDO1
+            - PDL1-,B7H3,IDO1
+            - PDL1,B7H3-,IDO1-
+            - PDL1-,B7H3,IDO1-
+            - PDL1-,B7H3-,IDO1
+            - PDL1-,B7H3-,IDO1-
+        Tumor:
+            - B2M,MHCI,MHCII
+            - B2M,MHCI,MHCII-
+            - B2M,MHCI-,MHCII
+            - B2M-,MHCI,MHCII
+            - B2M,MHCI-,MHCII-
+            - B2M-,MHCI,MHCII-
+            - B2M-,MHCI-,MHCII
+            - B2M-,MHCI-,MHCII-
+    Center Population: &centerPopulation
+        - MHCIIpos_macro
+        - MHCIIpos_macro,PDL1
+        - MHCIIpos_macro,B7H3
+        - MHCIIneg_macro
+        - MHCIIneg_macro,PDL1
+        - MHCIIneg_macro,B7H3
+        - Other_macro
+        - Other_macro,PDL1
+        - Other_macro,B7H3
+        - Macrophage/monocyte
+        - Macrophage/monocyte,PDL1
+        - Macrophage/monocyte,B7H3
+        - Immune
+    Neighborhood Population: &neighborhoodPopulation
+        - Tconv4
+        - Tconv4,PD1,TIM3,LAG3
+        - Tconv4,PD1,TIM3,LAG3-
+        - Tconv4,PD1,TIM3-,LAG3
+        - Tconv4,PD1-,TIM3,LAG3
+        - Tconv4,PD1,TIM3-,LAG3-
+        - Tconv4,PD1-,TIM3,LAG3-
+        - Tconv4,PD1-,TIM3-,LAG3
+        - Tconv4,PD1-,TIM3-,LAG3-
+        - Tconv8
+        - Tconv8,PD1,TIM3,LAG3
+        - Tconv8,PD1,TIM3,LAG3-
+        - Tconv8,PD1,TIM3-,LAG3
+        - Tconv8,PD1-,TIM3,LAG3
+        - Tconv8,PD1,TIM3-,LAG3-
+        - Tconv8,PD1-,TIM3,LAG3-
+        - Tconv8,PD1-,TIM3-,LAG3
+        - Tconv8,PD1-,TIM3-,LAG3-
+        - Treg4
+        - Treg4,PD1,TIM3,LAG3
+        - Treg4,PD1,TIM3,LAG3-
+        - Treg4,PD1,TIM3-,LAG3
+        - Treg4,PD1-,TIM3,LAG3
+        - Treg4,PD1,TIM3-,LAG3-
+        - Treg4,PD1-,TIM3,LAG3-
+        - Treg4,PD1-,TIM3-,LAG3
+        - Treg4,PD1-,TIM3-,LAG3-
+        - Treg8
+        - Treg8,PD1,TIM3,LAG3
+        - Treg8,PD1,TIM3,LAG3-
+        - Treg8,PD1,TIM3-,LAG3
+        - Treg8,PD1-,TIM3,LAG3
+        - Treg8,PD1,TIM3-,LAG3-
+        - Treg8,PD1-,TIM3,LAG3-
+        - Treg8,PD1-,TIM3-,LAG3
+        - Treg8,PD1-,TIM3-,LAG3-
+        - Treg
+        - T4_8
+        - Tnull
+        - T cell
+        - B
+        - NK
+        - NKT
+        - NKT8
+        - NKT4
+        - Natural killer cell overall
+        - Natural killer cell overall,PD1,TIM3,LAG3
+        - MHCIIpos_macro
+        - MHCIIneg_macro
+        - Other_macro
+        - Macrophage/monocyte
+        - Other_leuk
+        - Tumor
+        - Tumor,B7H3
+        - Tumor,MHCI
+
+    Center Population A: *centerPopulation
+    Center Population B: *centerPopulation
+    Neighborhood Population A: *neighborhoodPopulation
+    Neighborhood Population B: *neighborhoodPopulation
+

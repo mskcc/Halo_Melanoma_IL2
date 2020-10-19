@@ -1,0 +1,20 @@
+export PYTHONPATH=~/.venv/lib64/python3.7/site-packages
+
+## install packages:
+~/.venv/bin/pip install [pkg_name]
+
+## activate virtual environment
+byrne@selene:/juno/work/bic/byrne/celldive/Melanoma_IL2__Final/final> ~/.venv/bin/python3 ~/.venv/bin/activate_this.py 
+
+nohup snakemake --jobs 999 --cluster '/home/byrne/halo/dev/melanoma/pipeline/bsub.py' \
+  --configfile input/config/study_config.yaml \
+  --cluster-config /home/byrne/halo/dev/melanoma/pipeline/lsf.yaml \
+  --snakefile /home/byrne/halo/dev/melanoma/pipeline/Snakefile2 \
+  -n -p \
+  all &
+
+
+
+https://slowkow.com/notes/snakemake-tutorial/
+
+https://github.com/slowkow/snakefiles/tree/master/star_express

@@ -1,0 +1,86 @@
+STUDY SETUP
+
+  * user to manually create study meta data files (see docs for details/instructions)
+      - [StudyName]_Patients.xlsx
+      - [StudyName]_Samples.xlsx
+      - [StudyName]_FOVs.xlsx
+      - [StudyName]_Markers.xlsx
+      - [StudyName]_CellTypes.xlsx
+      - [StudyName]_Questions.xlsx
+      - [StudyName]_CellStates.xlsx
+
+  * user to configure study
+      - start with config template(s)
+      - at minimum, manually change:
+          - halo_image_dir
+          - halo_boundaries_dir
+          - halo_csv_dir
+          - meta_dir
+
+       * NOTE: halo boundary XML files and halo CSV files MUST follow a consistent format, including the CellDive_ID as it appears in meta files
+
+      - run config script to set up project directory structure including links to input files
+      - validate meta files & cross check data files
+      - generate cell state index file by mapping fraction & density conditions to each other, sorting according to configuration file and assigning a `Cell State ID` to each state
+
+
+
+
+PIPELINE STEPS
+
+  * preprocessing
+      - parse, validate and save study meta data files and save in single RDA file
+      - convert Halo CSV files to RDA
+      - convert Halo XML files to RDA (nested lists)
+      - analyze Halo image files & create drift/loss text files
+      - mark exclusions, create [CellDive_ID]_EXCL.rda files for each sample
+      - normalize/rethreshold data and save to [CellDive_ID]_RETHRESHOLDED.rda 
+  
+  * clustering? 
+
+  * neighborhoods
+      - create RDA file for each cell subtype?
+
+  * annotate cells
+      - convert normalized/rethresholded data for each sample from cell+marker level to cell level, creating a column for all positive markers in a cell and one for all positive cell identity markers in a cell
+      - assign to each cell all classifiers whose definitions fit its combination of positive and negative markers (defined in *_CellTypes.xlsx meta file)
+      - save to rda file named [CellDive_ID]_annotated_cells.rda
+
+  * calculate metrics
+      - count all existing cell type combinations, summarize in several different ways and save all to XLSX file
+      - count number of cells in each cell state in each sample/FOV
+      - count number of cells in each cell state in each 10um band around tumor interface in each sample/FOV
+      - calculate total area of each FOV
+      - calculate total area of each 10um infiltration band in each sample/FOV
+      - calculate fractions of each cell state out of populations outlined in cell state index in each sample/FOV
+      - calculate fractions of each cell state out of populations outlined in cell state index in each Band in each sample/FOV
+      - calculate total density of each cell state in each sample/FOV
+      - calculate total density of each Band in each sample/FOV
+      - calculate neighborhood average counts in each sample/FOV
+      - calculate neighborhood average counts in each band in each sample/FOV
+      - calculate neighborhood fractions in each sample/FOV
+      - calculate neighborhood fractions in each band in each sample/FOV
+
+  * statistics
+      - create XLSX file showing which samples are included in each sample (see docs for details)
+      - for each question:
+         - separate samples into two groups according to criteria outlined in [StudyName]_Questions.xlsx
+             - for each group, calculate median fraction/density/average of all cell states in each FOV
+         - for fraction conditions, run wilcox test to get log(Odds Ratio), pval, FDR & CI 
+         - for density conditions, run wilcox test to get log(Fold Change), pval, FDR & CI
+
+
+
+  * plots & figures
+      - boxplots
+          - fraction CD25+ cells in each cell subtype (all Treated vs. Untreated samples (question 3a?))
+          - fraction each cell subtype out of all immune cells (all Treated vs Untreated samples (question 3a?))
+      - infiltration density bar plots
+          - see density config YAML file
+      - CD25 heatmaps?
+      - stats overview plots (all cell states)
+      - stats detail plots (subset of conditions)
+      - neighborhood pos/neg bubble chart(s)
+      - tSNE plots
+
+

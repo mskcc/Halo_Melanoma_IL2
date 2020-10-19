@@ -1,0 +1,6 @@
+__default__:
+  resources: "-R 'rusage[mem=2]'" 
+  name: "melanoma_{rule}.{wildcards}" 
+  stdout: "logs/melanoma_{rule}.{wildcards}.log"
+  stderr: "logs/melanoma_{rule}.{wildcards}.log"
+
