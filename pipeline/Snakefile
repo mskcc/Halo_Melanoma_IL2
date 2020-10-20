@@ -104,32 +104,41 @@ rule qc_halo_boundaries:
         config['qc_dir'] + '/{sample}_halo_boundaries_qc.pdf'
     resources:
         threads = 1,
-        mem = 12
+        mem = 30
     shell:
         "{Rpath}/Rscript {src}/scripts/qc/halo_boundaries.R " +
+            " --cell_dive_id {wildcards.sample} " +
             " --halo_boundaries_rda_dir " + config['halo_boundaries_rda_dir'] +
             " --meta_dir " + config['meta_dir'] +
+            " --number_threads 1 " +
             " --qc_dir " + config['qc_dir'] +
-            " --raw_data_dir " + config['raw_data_dir'] +
-            " --cell_dive_id {wildcards.sample}"
+            " --raw_data_dir " + config['raw_data_dir'] 
 
 ##
 ## mark FOV/cell/marker exclusions
 ## 
-'''
 rule mark_exclusions:
     input:
         raw_data_file = config['raw_data_dir'] + '/{sample}_MegaTableV5b.rda',
-        boundaries = glob.glob(config['halo_boundaries_rda_dir'] + '{sample}_halo_boundaries.rda'),
+        boundaries = config['halo_boundaries_rda_dir'] + '/{sample}_halo_boundaries.rda',
         fov_meta = glob.glob(config['meta_dir'] + '/*_FOVs.xlsx')
     output:
-        config['exclusion_data_dir'] + '/{sample}_MegaTableV5b.rda_Excl.rda'
+        config['exclusion_data_dir'] + '/{sample}_MegaTableV5b_Excl.rda'
+    resources:
+        threads = 1,
+        mem = 30
     shell:
         "{Rpath}/Rscript {src}/scripts/mark_exclusions.R " +
-            " --raw_data_files {input.raw_data_file} " +
-            " --data_file {output} " +
-            " --meta_dir " + config['meta_dir']
-'''
+            " --cell_dive_id {wildcards.sample} " +
+            " --control_marker " + config['control_marker'] +
+            " --drift_summary_dir " + config['drift_summary_dir'] +
+            " --drift_threshold " + str(config['drift_threshold']) +
+            " --exclusion_data_dir " + config['exclusion_data_dir'] +
+            " --halo_boundaries_rda_dir " + config['halo_boundaries_rda_dir'] +
+            " --meta_dir " + config['meta_dir'] +
+            " --pad " + str(config['pad']) +
+            " --number_threads 1 " + 
+            " --raw_data_dir " + config['raw_data_dir']
 
 
 ##
@@ -408,8 +417,9 @@ rule plot_stats_detail:
 ## and plotting
 rule data_and_plots:
     input:
+        expand(config['exclusion_data_dir'] + '/{sample}_MegaTableV5b_Excl.rda', sample = samples)
         #rules.summarize_cell_counts.output,
-        expand(config['qc_dir'] + '/{sample}_halo_boundaries_qc.pdf', sample = samples) #,
+        #expand(config['qc_dir'] + '/{sample}_halo_boundaries_qc.pdf', sample = samples) #,
         #expand(config['statistics_detail_dir'] + '/{question}_{calc}_detail.{ext}', question=questions, calc=plotCalcs, ext = plotExts),
     output:
         touch(config['log_dir'] + "/PIPELINE_COMPLETE") 

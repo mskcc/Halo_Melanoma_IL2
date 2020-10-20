@@ -51,13 +51,14 @@ getHaloExclusions <- function(fov, dd, excType, haloAnnotations=NULL, aFile=NULL
 }
 
 
-getFOVexclusions <- function(dat, sampAnn){
+joinFOVexclusions <- function(dat, sampAnn){
     dat %>%
     left_join(sampAnn %>% select(CellDive_ID, FOV_number, FOV_exclusion),  
-              by = c("CellDive_ID", "FOV_number"))
+              by = c("CellDive_ID", "FOV_number")) %>%
+    mutate(FOV_exclusion = ifelse(FOV_exclusion == "X", "FOV_exclusion", NA))
 }
 
-getMarkerExclusions <- function(dat, sampAnn){
+joinMarkerExclusions <- function(dat, sampAnn){
     cols <- sapply(sampAnn$Marker_exclusion, function(x) length(unlist(strsplit(x, ","))) ) %>% unlist() %>% max()
 
     mExcl <- sampAnn %>% 
@@ -66,53 +67,90 @@ getMarkerExclusions <- function(dat, sampAnn){
              gather(paste0("M_", seq(cols)), key="TMP", value="Marker") %>%
              select(-TMP) %>%
              filter(!is.na(Marker), Marker != "") %>%
-             mutate(Marker = trimws(Marker), Marker_exclusion = "X")
+             mutate(Marker = trimws(Marker), Marker_exclusion = "Marker_exclusion")
 
     dat %>%
     left_join(mExcl, by = c("CellDive_ID", "FOV_number", "Marker")) 
 }
 
-#' Get indices of cells to be excluded because the percentage of drift/loss is
-#' greater than the set threshold
+#' Add column to halo data indicating whether a cell should be excluded due
+#' to drift/loss percentage being greater than the set threshold
 #'
-#' Get indices of cells to be excluded because the percentage of drift/loss is
+#' Mark cells to be excluded because the percentage of drift/loss is
 #' greater than the set threshold
 #' 
-#' @param drift     table of drift/loss percentages
 #' @param dat       cell data
+#' @param drift     table of drift/loss percentages
 #' @param threshold maximum percent of drift/loss allowed
 #' @return vector of dat indices that need to be marked for exclusion
-getDriftExclusions <- function(drift, dat, threshold){
+joinDriftExclusions <- function(dat, drift, threshold){
 
-    excl <- c()
-    drft <- drift %>% select(Image_Location=image_location, XMin=x_min, XMax=x_max,
-                             YMin=y_min, YMax=y_max, drift_loss_pixel_pct)
-    tmp <- full_join(dat, drft, by=c("Image_Location","XMin","XMax","YMin","YMax"))
-    excl <- which(!is.na(tmp$drift_loss_pixel_pct) & tmp$drift_loss_pixel_pct > threshold) 
-    excl
+    drft <- drift %>% 
+            select(Image_Location=image_location, XMin=x_min, XMax=x_max,
+                   YMin=y_min, YMax=y_max, drift_loss_pixel_pct) %>%
+            filter(drift_loss_pixel_pct > threshold) %>%
+            mutate(Drift_exclusion = paste0("Drift_", threshold))
+
+    dat %>% 
+    left_join(drft, by=c("Image_Location","XMin","XMax","YMin","YMax")) %>%
+    select(-Image_Location, -drift_loss_pixel_pct)
 }
 
 #' Get indices of cell to be excluded because they lie outside the border padding 
 #' 
 #' Get indices of cell to be excluded because they lie outside the border padding 
 #' 
-#' @param fov        fov to be marked for exclusions
-#' @param samp       sample to be marked
-#' @param dat        data tibble containing data to be marked
+#' @param dat        data tibble containing data to be marked, including columns
+#'                   X and Y, the coordinates for each cell
+#' @param bbFOV      list of four elements, X0, X1, Y0, Y1, representing the 
+#'                   bounding box of a single FOV
 #' @param borderPad  number in pixels to trim from data
-getBorderPaddingExclusions <- function(fov, samp, dat, borderPad){
+joinBorderPaddingExclusions <- function(dat, bbFOV, borderPad){
 
-    fovDat <- dat %>% filter(Sample==samp, SPOT==fov)
-    
-    #bbFOV <- list(X0=1,Y0=-3375,X1=5363,Y1=1)
     bb <- list(X0 = bbFOV$X0 + borderPad,
                X1 = bbFOV$X1 - borderPad,
                Y0 = bbFOV$Y0 + borderPad,
                Y1 = bbFOV$Y1 - borderPad)
 
-    which( dat$Sample == samp & dat$SPOT == fov &
-         ( dat$X < bb$X0 | dat$X > bb$X1 | dat$Y < bb$Y0 | dat$Y > bb$Y1)) 
-    
+    dat %>%
+    mutate(Padding_exclusion = ifelse(X < bb$X0 | X > bb$X1 | Y < bb$Y0 | Y > bb$Y1, 
+                                      paste0("Padding_", borderPad * pixel2um, "um"), NA))
+
+}
+
+markManualExclusions <- function(dat, exclusionBounds){
+    excDat <- tibble()
+
+    ## mark cells that fall inside Halo exclusion boundaries (exclusions, epidermis, glass) and also
+    ## those that fall outside limits set by border pad 
+    for(fov in unique(dat$FOV_number)){
+        ds <- dat %>% filter(FOV_number == fov) %>% mutate(Manual_exclusion = "")
+
+        exc <- exclusionBounds[[as.character(fov)]]
+        exc <- exc[!names(exc) == "tumB"]
+        
+        if(is.null(exc) || length(exc) == 0){
+            excDat <- bind_rows(excDat, ds)
+            next
+        } 
+
+        bCode <- c("epiB" = "epidermis", "excB" = "exclusion", "glsB" = "glass")
+        for(boundType in names(exc)){
+            excB <- exc[[boundType]]
+            spCells <- ds %>% dplyr::select(UUID,X,Y)
+            coordinates(spCells) <- ~X+Y
+            excludedCellIdx <- NULL
+            spExcB <- seq(excB) %>% map(function(b){boundaryToSpatialPolygon(excB[[b]],b)})
+            for(jj in 1:length(spExcB)) {
+                excCellJJ <- unlist(sp::over(spExcB[[jj]],geometry(spCells),returnList=T))
+                excludedCellIdx <- union(excludedCellIdx,excCellJJ)
+            }
+            ds$Manual_exclusion[excludedCellIdx] <- paste0(ds$Manual_exclusion[excludedCellIdx], 
+                                                           rep(bCode[[boundType]], length(excludedCellIdx)))
+        } 
+        excDat <- bind_rows(excDat, ds)
+    }
+    excDat %>% mutate(Manual_exclusion = ifelse(Manual_exclusion == "", NA, Manual_exclusion))
 }
 
 #' Add exclusion reasons to a vector of existing exclusion reasons
@@ -142,111 +180,29 @@ writeExclusionReasons <- function(exclCol,idxs,reason){
 #' @param dat             tibble containing Halo object analysis data, to which EXCLUDE column
 #'                        will be added
 #' @param drift           tibble of drift/loss summary 
-#' @param sampAnn         FOV annotations for one sample
+#' @param fovAnn          FOV annotations for one sample
+#' @param exclusionBounds parsed Halo boundaries in list form for a single sample
 #' @param borderPad       number in microns indicating the minimum distance between a cell and the FOV
 #'                        border in order for that cell NOT to be excluded
 #' @param driftThreshold  maximum pixel percent determined to have drifted in order to NOT be excluded
 #' @return tibble matching {dat} exactly, with an extra column, EXCLUDE, added to indicate which
 #'         cells should not be analyzed
 #' @export
-markExclusions <- function(dat, drift, fovAnn, driftThreshold=0.1){
+markExclusions <- function(dat, drift, fovAnn, exclusionBounds, driftThreshold=0.1, borderPad = 20){
 
     borderPad_px <- borderPad/pixel2um
 
-    exFiles <- epFiles <- gFiles <- NULL
+    dat %>%
+    mutate(X=(XMax+XMin)/2,Y=-(YMax+YMin)/2) %>%
+    joinFOVexclusions(fovAnn) %>%
+    joinMarkerExclusions(fovAnn) %>%
+    joinDriftExclusions(drift, driftThreshold) %>%
+    joinBorderPaddingExclusions(getConstantBoundingBox(dat$CellDive_ID[1]), borderPad_px) %>%
+    markManualExclusions(exclusionBounds) %>%
+    unite("EXCLUDE", 
+          c(FOV_exclusion, Marker_exclusion, Drift_exclusion, Padding_exclusion, Manual_exclusion),
+          sep = ";", na.rm = T)
 
-    log_debug("Converting min/max coordinates to midpoint coordinates")
-    dd <- dat %>% mutate(X=(XMax+XMin)/2,Y=-(YMax+YMin)/2) ## need to keep X|Y min|max for drift loss 
-    dd$EXCLUDE <- ""
-
-    log_info(paste("\t","Sample","FOV","Reason","Num.Excl.Cells",sep="\t"))
-
-
-    ## get exclusions determined by lab personel, found in FOV annotations meta data spreadsheet   
-    dd <- dd %>%
-          getFOVexclusions(sampAnn) %>%
-          getMarkerExclusions(sampAnn)
-    
-
-    ######### START HERE ##########
-
-
-    ## get drift/loss exclusions
-    if(!is.null(drift)){
-        driftExcl <- getDriftExclusions(drift, dd, driftThreshold)
-        if(length(driftExcl) > 0){
-            dd$EXCLUDE <- writeExclusionReasons(dd$EXCLUDE, driftExcl, paste0("DRIFT_",driftThreshold*100))
-            tmp <- dd %>% 
-               filter(grepl("DRIFT",EXCLUDE)) %>% 
-               group_by(Sample, SPOT, EXCLUDE) %>%
-               summarize(`Num.Excl.Cells`=n())
-            for(row in 1:nrow(tmp)){
-               log_info(paste("\t",paste(tmp[row,], collapse="\t")))
-            }
-        } else {
-            log_info(paste("\t",samp,"ALL",paste0("DRIFT_",driftThreshold*100),0,sep="\t"))
-        }
-    } else {
-        log_info(paste("\t",samp,"ALL",paste0("DRIFT_",driftThreshold*100),0,sep="\t"))
-    }
-
-
-    ## mark cells that fall inside Halo exclusion boundaries (exclusions, epidermis, glass) and also
-    ## those that fall outside limits set by border pad 
-    for(fov in unique(dd$SPOT)){ 
-        aFile <- epFile <- gFile <- iFile <- NULL
-
-        ## exclude points that fall within outside border
-        borderExcl <- getBorderPaddingExclusions(fov, samp, dd, borderPad_px)
-        if(length(borderExcl) > 0){
-            dd$EXCLUDE <- writeExclusionReasons(dd$EXCLUDE, borderExcl, paste0("PADDED_",borderPad,"_um"))
-        }
-        log_info(paste("\t", samp, fov, paste0("PADDED_",borderPad,"_um"), length(borderExcl), sep="\t"))
-
-        ## if parsed halo annotation is not given, get all halo annotations files for this FOV
-        if(is.null(haloAnn)){
-            sampAnns <- aFiles[grep(paste0(samp,"_"),aFiles)]
-            aFile <- sampAnns[grep(paste0("Spot",fov,".annotations"),sampAnns)]
-            sampAnns <- epFiles[grep(paste0(samp,"_"),epFiles)]
-            epFile <- sampAnns[grep(paste0("Spot",fov,".annotations"),sampAnns)]
-            sampAnns <- gFiles[grep(paste0(samp,"_"),gFiles)]
-            gFile <- sampAnns[grep(paste0("Spot",fov,".annotations"),sampAnns)]
-            sampAnns <- iFiles[grep(paste0(samp,"-"),iFiles)]
-            iFile <- sampAnns[grep(paste0("Spot",fov,".annotations"),sampAnns)]
-        }
-
-        ## get halo exclusions 
-        haloExcl <- getHaloExclusions(fov, dd, "Exc", haloAnnotations=haloAnn, aFile=aFile, 
-                                      boundaryColors=boundaryColors, boundaryReassignmentFile=boundaryReassignmentFile)
-        if(length(haloExcl) > 0){
-            dd$EXCLUDE <- writeExclusionReasons(dd$EXCLUDE, haloExcl, "HALOExclusion")
-        }
-        log_info(paste("\t", samp, fov, "HALOExclusion", length(haloExcl), sep="\t"))
-
-        ## get halo epidermis exclusions 
-        haloEpi <- getHaloExclusions(fov, dd, "Epi", haloAnnotations=haloAnn, aFile=epFile, 
-                                     boundaryColors=boundaryColors, boundaryReassignmentFile=boundaryReassignmentFile)
-        if(length(haloEpi) > 0){
-            dd$EXCLUDE <- writeExclusionReasons(dd$EXCLUDE, haloEpi, "HALOEpidermis")
-        }
-        log_info(paste("\t", samp, fov, "HALOEpidermis", length(haloEpi), sep="\t"))
-
-        ## get halo glass exclusions 
-        haloGls <- getHaloExclusions(fov, dd, "Gls", haloAnnotations=haloAnn, aFile=gFile, 
-                                     boundaryColors=boundaryColors, boundaryReassignmentFile=boundaryReassignmentFile)
-        if(length(haloGls) > 0){
-            dd$EXCLUDE <- writeExclusionReasons(dd$EXCLUDE, haloGls, "HALOGlass")
-        }
-        log_info(paste("\t", samp, fov, "HALOGlass", length(haloGls), sep="\t"))
-
-        ## debug with plots
-        if(printPlots){
-            log_info("Printing plots for debugging")
-            plotExclusions(dd[which(dd$SPOT==fov),],haloAnnotations=haloAnn,iFiles,aFiles,epFiles,gFiles,outDir=debugDir,
-                           boundaryReassignmentFile=boundaryReassignmentFile)
-        }
-    }
-    dd %>% select(-(X:Y))
 }
 
 
@@ -409,23 +365,6 @@ excludeMarkerLevelFOVs <- function(dat, sampAnn){
     filtDat
                   
 }
-
-#' Remove FOVs marked for exclusion in study annotation
-#' 
-#' From cell-level data (one row per cell), filter out entire FOVs marked for
-#' exclusion in study annotation.
-#' 
-#' @param dat      cell level data table including columns for Sample_ID, FOV_ID,
-#' @param sampAnn  a table of sample annotation including columns for Sample_ID,
-#'                 FOV_ID and FOV_exclusion
-#excludeCellLevelFOVs <- function(dat, sampAnn){
-
-#    totalCells <- length(unique(dat$UUID))
-
-#    fovExcl <- sampAnn %>%
-#               select(CellDive_ID
-    
-#}
 
 
 #excludeMarkers <- function(dat, sampAnn){

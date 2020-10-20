@@ -1188,7 +1188,7 @@ loadHaloDataFile <- function(file, filterExclusions = FALSE, controlMarker = "DA
 
     dat <- dat %>%
            filter(ValueType == "Positive") %>%
-           select(Sample, SubSample, SPOT, UUID, Marker, dplyr::matches("XM|YM"), Value)
+           select(Sample, SubSample, SPOT, UUID, Marker, dplyr::matches("XM|YM"), Value, Image_Location)
 
     ctrlNeg <- dat$UUID[which(dat$Marker == controlMarker && dat$Value == 0)]
     if(length(ctrlNeg) > 0){
